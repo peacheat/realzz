@@ -1,0 +1,3769 @@
+<!doctype html>
+<html lang="ko" class="dark"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#07070d">
+    <title>고등수학 오답률 예측기</title>
+    <meta name="description" content="수학 문제 사진을 분석해 선택한 과목과 학년 집단 기준의 예상 오답률(%)을 예측하는 웹앱">
+    <meta property="og:title" content="고등수학 오답률 예측기">
+    <meta property="og:description" content="수학 문제 사진을 분석해 선택한 과목과 학년 집단 기준의 예상 오답률(%)을 예측하는 웹앱">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&amp;family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@600;700;800&amp;display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg: #07070d;
+        --surface: #121324;
+        --surface-hover: #171931;
+        --cyan: #06f0d6;
+        --pink: #ff2a5f;
+        --purple: #9333ea;
+        --purple-light: #c084fc;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --soft: #cbd5e1;
+        --border: rgba(255, 255, 255, 0.12);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        background-color: var(--bg);
+        color: var(--text);
+        font-family: 'IBM Plex Sans KR', 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic',
+          -apple-system, BlinkMacSystemFont, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: clip;
+      }
+
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+        background: none;
+        border: 0;
+        padding: 0;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+      }
+
+      button:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid var(--cyan);
+        outline-offset: 2px;
+      }
+
+      img {
+        display: block;
+        max-width: 100%;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      .font-display {
+        font-family: 'Black Han Sans', 'IBM Plex Sans KR', sans-serif;
+      }
+
+      .font-mono-nums {
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .tabular-nums {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .ambient-backdrop {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background:
+          radial-gradient(circle at 20% 15%, rgba(168, 85, 247, 0.14), transparent 42%),
+          radial-gradient(circle at 80% 75%, rgba(6, 240, 214, 0.1), transparent 45%);
+      }
+
+      .app-shell {
+        position: relative;
+        z-index: 1;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* TopBar */
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(7, 7, 13, 0.9);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+
+      .topbar-inner {
+        margin: 0 auto;
+        display: flex;
+        height: 56px;
+        max-width: 480px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 0 16px;
+      }
+
+      .brand-btn {
+        min-height: 44px;
+        padding: 0 4px;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: #fff;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .step-nav {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+      }
+
+      @media (max-width: 370px) {
+        .step-nav {
+          display: none;
+        }
+      }
+
+      .step-sep {
+        color: #475569;
+        user-select: none;
+      }
+
+      .step-link {
+        min-height: 36px;
+        padding: 0 4px;
+        border-radius: 4px;
+        font-weight: 500;
+        color: #94a3b8;
+        white-space: nowrap;
+      }
+
+      .step-link:hover {
+        color: #fff;
+        text-decoration: underline;
+        text-underline-offset: 4px;
+      }
+
+      .step-current {
+        color: var(--cyan);
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .step-future {
+        color: #475569;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+
+      .sound-btn {
+        display: inline-flex;
+        min-height: 38px;
+        align-items: center;
+        gap: 6px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 6px 11px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #cbd5e1;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      }
+
+      .sound-btn.active {
+        border-color: rgba(6, 240, 214, 0.45);
+        background: rgba(6, 240, 214, 0.1);
+        color: var(--cyan);
+      }
+
+      /* Main 9:16 mobile container */
+      .main-container {
+        margin: 0 auto;
+        width: 100%;
+        max-width: 460px;
+        flex: 1;
+        padding: 20px 16px;
+      }
+
+      @media (min-width: 640px) {
+        .main-container {
+          max-width: 480px;
+          padding: 28px 16px;
+        }
+      }
+
+      .stack-5 > * + * {
+        margin-top: 20px;
+      }
+
+      .stack-4 > * + * {
+        margin-top: 16px;
+      }
+
+      .stack-3 > * + * {
+        margin-top: 12px;
+      }
+
+      .stack-2 > * + * {
+        margin-top: 8px;
+      }
+
+      .eyebrow {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--cyan);
+      }
+
+      .eyebrow-purple {
+        color: var(--purple-light);
+      }
+
+      .eyebrow-pink {
+        color: var(--pink);
+      }
+
+      .page-title {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 800;
+        line-height: 1.25;
+        letter-spacing: -0.02em;
+        color: #fff;
+        text-wrap: balance;
+      }
+
+      @media (min-width: 640px) {
+        .page-title {
+          font-size: 28px;
+        }
+      }
+
+      .page-desc {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--soft);
+      }
+
+      /* Selection cards */
+      .option-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      @media (min-width: 440px) {
+        .option-grid-2 {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      .choice-card {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: var(--surface);
+        padding: 15px 16px;
+        text-align: left;
+        transition: border-color 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease;
+      }
+
+      .choice-card:hover {
+        border-color: rgba(6, 240, 214, 0.4);
+        background: var(--surface-hover);
+      }
+
+      .choice-card.selected-cyan {
+        border-color: var(--cyan);
+        background: #141c2f;
+        box-shadow: 0 0 22px rgba(6, 240, 214, 0.16);
+      }
+
+      .choice-card.selected-purple {
+        border-color: #a855f7;
+        background: #1b1433;
+        box-shadow: 0 0 22px rgba(168, 85, 247, 0.22);
+      }
+
+      .choice-card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+      }
+
+      .choice-sub {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+
+      .choice-card.selected-cyan .choice-sub {
+        color: var(--cyan);
+      }
+
+      .choice-card.selected-purple .choice-sub {
+        color: #d8b4fe;
+      }
+
+      .choice-name {
+        display: block;
+        margin-top: 2px;
+        font-size: 17px;
+        font-weight: 700;
+        color: #fff;
+      }
+
+      .choice-note {
+        margin: 8px 0 0;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+
+      .choice-card.selected-cyan .choice-note,
+      .choice-card.selected-purple .choice-note {
+        color: #e2e8f0;
+      }
+
+      .radio-dot {
+        margin-top: 2px;
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        border: 1.5px solid #475569;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .choice-card.selected-cyan .radio-dot {
+        border-color: var(--cyan);
+        background: var(--cyan);
+      }
+
+      .choice-card.selected-purple .radio-dot {
+        border-color: #c084fc;
+        background: #a855f7;
+      }
+
+      .radio-dot-inner {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #07070d;
+      }
+
+      .choice-card.selected-purple .radio-dot-inner {
+        background: #fff;
+      }
+
+      /* Buttons */
+      .btn-row {
+        display: flex;
+        gap: 10px;
+        padding-top: 4px;
+      }
+
+      .btn-primary {
+        display: inline-flex;
+        min-height: 52px;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border-radius: 16px;
+        padding: 12px 22px;
+        font-size: 16px;
+        font-weight: 700;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: opacity 0.12s ease, transform 0.1s ease, background-color 0.12s ease;
+      }
+
+      .btn-primary:active:not(:disabled) {
+        transform: scale(0.99);
+      }
+
+      .btn-cyan {
+        background: var(--cyan);
+        color: #05060b;
+      }
+
+      .btn-cyan:hover:not(:disabled) {
+        background: #33f5e0;
+      }
+
+      .btn-purple {
+        background: var(--purple);
+        color: #fff;
+      }
+
+      .btn-purple:hover:not(:disabled) {
+        background: #a855f7;
+      }
+
+      .btn-fire {
+        background: linear-gradient(90deg, #ff2a5f, #9333ea);
+        color: #fff;
+        box-shadow: 0 0 24px rgba(255, 42, 95, 0.35);
+      }
+
+      .btn-fire:hover:not(:disabled) {
+        opacity: 0.94;
+      }
+
+      .btn-primary:disabled {
+        background: rgba(255, 255, 255, 0.1);
+        color: #64748b;
+        box-shadow: none;
+      }
+
+      .btn-secondary {
+        display: inline-flex;
+        min-height: 52px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: var(--surface);
+        padding: 12px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #e2e8f0;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .flex-1 {
+        flex: 1;
+      }
+
+      /* Upload area */
+      .upload-box {
+        border-radius: 16px;
+        border: 1px dashed rgba(255, 255, 255, 0.22);
+        background: var(--surface);
+        padding: 20px;
+        text-align: center;
+        transition: border-color 0.15s ease, background-color 0.15s ease;
+      }
+
+      .upload-box.dragging {
+        border-color: var(--cyan);
+        background: rgba(6, 240, 214, 0.08);
+      }
+
+      .upload-btn-gallery {
+        display: inline-flex;
+        min-height: 52px;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: #191b33;
+        padding: 12px 20px;
+        font-size: 16px;
+        font-weight: 600;
+        color: #fff;
+      }
+
+      .upload-btn-gallery:hover {
+        border-color: rgba(6, 240, 214, 0.6);
+        background: #1f2240;
+      }
+
+      .sample-divider {
+        margin-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 16px;
+      }
+
+      .sample-grid {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .sample-btn {
+        min-height: 44px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 8px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #e2e8f0;
+        white-space: nowrap;
+      }
+
+      .sample-btn:hover {
+        border-color: rgba(6, 240, 214, 0.5);
+        color: var(--cyan);
+      }
+
+      .preview-card {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: var(--surface);
+        padding: 16px;
+      }
+
+      .preview-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 12px;
+      }
+
+      .preview-filename {
+        max-width: 210px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+        font-weight: 500;
+        color: #e2e8f0;
+      }
+
+      .text-action-btn {
+        display: inline-flex;
+        min-height: 36px;
+        align-items: center;
+        gap: 6px;
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--cyan);
+        white-space: nowrap;
+      }
+
+      .text-action-btn:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .preview-img-wrap {
+        margin-top: 12px;
+        display: flex;
+        justify-content: center;
+        overflow: hidden;
+        border-radius: 12px;
+        background: #fff;
+        padding: 8px;
+      }
+
+      .preview-img {
+        max-height: 280px;
+        width: auto;
+        border-radius: 8px;
+        object-fit: contain;
+      }
+
+      .hint-section {
+        margin-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 12px;
+      }
+
+      .hint-grid {
+        margin-top: 8px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      @media (min-width: 460px) {
+        .hint-grid {
+          grid-template-columns: repeat(4, 1fr);
+        }
+      }
+
+      .hint-btn {
+        min-height: 38px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 6px 8px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--soft);
+        white-space: nowrap;
+      }
+
+      .hint-btn.active {
+        border-color: var(--cyan);
+        background: rgba(6, 240, 214, 0.15);
+        color: var(--cyan);
+      }
+
+      .alert-text {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 500;
+        color: #fb7185;
+      }
+
+      /* Shorts Stage */
+      .shorts-stage {
+        position: relative;
+        display: flex;
+        min-height: 540px;
+        flex-direction: column;
+        justify-content: space-between;
+        overflow: hidden;
+        border-radius: 24px;
+        border: 1px solid rgba(168, 85, 247, 0.4);
+        padding: 20px;
+        transition: background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+      }
+
+      @media (min-width: 640px) {
+        .shorts-stage {
+          padding: 24px;
+        }
+      }
+
+      .stage-analyzing {
+        background: linear-gradient(180deg, #0b0718 0%, #140a2b 50%, #07070d 100%);
+        border-color: rgba(168, 85, 247, 0.35);
+        box-shadow: 0 0 50px rgba(168, 85, 247, 0.2);
+      }
+
+      .stage-counting {
+        background: linear-gradient(180deg, #0b0718 0%, #130c29 50%, #07070d 100%);
+        border-color: rgba(168, 85, 247, 0.45);
+        box-shadow: 0 0 40px rgba(168, 85, 247, 0.22);
+      }
+
+      .tier-easy {
+        background: linear-gradient(180deg, #042414 0%, #06381f 50%, #07070d 100%);
+        border-color: rgba(74, 222, 128, 0.5);
+        box-shadow: 0 0 40px rgba(34, 197, 94, 0.28);
+      }
+
+      .tier-tasty {
+        background: linear-gradient(180deg, #1a2204 0%, #2c3305 50%, #07070d 100%);
+        border-color: rgba(163, 230, 53, 0.5);
+        box-shadow: 0 0 40px rgba(163, 230, 53, 0.26);
+      }
+
+      .tier-strong {
+        background: linear-gradient(180deg, #261103 0%, #3d1a06 50%, #07070d 100%);
+        border-color: rgba(251, 146, 60, 0.55);
+        box-shadow: 0 0 42px rgba(249, 115, 22, 0.32);
+      }
+
+      .tier-shock {
+        background: linear-gradient(180deg, #2b040c 0%, #4a0714 50%, #07070d 100%);
+        border-color: rgba(239, 68, 68, 0.65);
+        box-shadow: 0 0 48px rgba(239, 68, 68, 0.42);
+      }
+
+      .tier-endgame {
+        background: linear-gradient(180deg, #050103 0%, #36020d 50%, #030307 100%);
+        border-color: rgba(244, 63, 94, 0.8);
+        box-shadow: 0 0 56px rgba(255, 0, 60, 0.52);
+      }
+
+      .stage-top-row {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 12px;
+        color: #e2e8f0;
+      }
+
+      .stage-center {
+        position: relative;
+        z-index: 10;
+        margin: auto 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 18px 0;
+        text-align: center;
+      }
+
+      .stage-controls {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 12px;
+      }
+
+      .stage-mini-btn {
+        display: inline-flex;
+        min-height: 40px;
+        align-items: center;
+        gap: 6px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(0, 0, 0, 0.35);
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #fff;
+        white-space: nowrap;
+      }
+
+      .stage-mini-btn:hover {
+        background: rgba(0, 0, 0, 0.58);
+      }
+
+      /* Heartbeat visualizer */
+      .beat-orb-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 176px;
+        height: 176px;
+      }
+
+      .beat-ring {
+        position: absolute;
+        width: 176px;
+        height: 176px;
+        border-radius: 999px;
+        border: 2px solid rgba(6, 240, 214, 0.45);
+        animation: beat-ring 0.923s ease-out infinite;
+      }
+
+      .beat-ring.ring-pink {
+        border-color: rgba(255, 42, 95, 0.4);
+        animation-delay: 461ms;
+      }
+
+      .beat-core {
+        position: relative;
+        width: 144px;
+        height: 144px;
+        border-radius: 999px;
+        border: 1px solid rgba(6, 240, 214, 0.6);
+        background: rgba(13, 14, 26, 0.9);
+        box-shadow: 0 0 40px rgba(6, 240, 214, 0.38);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: heartbeat 0.4615s ease-in-out infinite;
+      }
+
+      .eq-bars {
+        display: flex;
+        height: 48px;
+        align-items: flex-end;
+        gap: 8px;
+      }
+
+      .eq-bar {
+        width: 8px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, #06f0d6, #a855f7, #ff2a5f);
+        transform-origin: bottom;
+      }
+
+      .big-percent {
+        margin: 6px 0 0;
+        font-size: 86px;
+        line-height: 1;
+        letter-spacing: -0.02em;
+        color: #fff;
+      }
+
+      @media (min-width: 640px) {
+        .big-percent {
+          font-size: 100px;
+        }
+      }
+
+      .progress-track {
+        margin-top: 20px;
+        height: 8px;
+        width: 192px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .progress-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #06f0d6, #a855f7, #ff2a5f);
+        transition: width 100ms linear;
+      }
+
+      .tier-phrase {
+        margin: 12px 0 0;
+        font-size: 30px;
+        line-height: 1.2;
+        letter-spacing: 0.02em;
+      }
+
+      @media (min-width: 640px) {
+        .tier-phrase {
+          font-size: 36px;
+        }
+      }
+
+      /* Details panels */
+      .detail-card {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: var(--surface);
+        padding: 16px;
+      }
+
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 14px;
+      }
+
+      .reason-list {
+        margin: 8px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .reason-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--soft);
+      }
+
+      .reason-item + .reason-item {
+        margin-top: 6px;
+      }
+
+      .reason-dot {
+        margin-top: 7px;
+        width: 4px;
+        height: 4px;
+        border-radius: 999px;
+        background: var(--cyan);
+        flex-shrink: 0;
+      }
+
+      .cohort-switch-grid {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        border-radius: 12px;
+        background: #090a14;
+        padding: 4px;
+      }
+
+      .cohort-switch-btn {
+        min-height: 44px;
+        border-radius: 8px;
+        padding: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--soft);
+        white-space: nowrap;
+      }
+
+      .cohort-switch-btn.active {
+        background: var(--purple);
+        color: #fff;
+      }
+
+      .cohort-switch-btn:hover:not(.active) {
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+      }
+
+      .thumb-row {
+        margin-top: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 12px;
+      }
+
+      .thumb-img {
+        width: 64px;
+        height: 56px;
+        flex-shrink: 0;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: #fff;
+        object-fit: contain;
+      }
+
+      /* Footer */
+      .app-footer {
+        margin: 0 auto;
+        width: 100%;
+        max-width: 480px;
+        padding: 8px 16px 24px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .zip-btn {
+        display: inline-flex;
+        min-height: 40px;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--soft);
+        white-space: nowrap;
+      }
+
+      .zip-btn-primary {
+        border-color: rgba(6, 240, 214, 0.35);
+        background: rgba(6, 240, 214, 0.08);
+        color: var(--cyan);
+      }
+
+      .zip-btn:hover {
+        border-color: rgba(6, 240, 214, 0.65);
+        color: var(--cyan);
+      }
+
+      /* Effects layer */
+      .fx-layer {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      /* Keyframes */
+      @keyframes heartbeat {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        20% {
+          transform: scale(1.1);
+        }
+        40% {
+          transform: scale(0.98);
+        }
+        60% {
+          transform: scale(1.06);
+        }
+      }
+
+      @keyframes beat-ring {
+        0% {
+          transform: scale(0.75);
+          opacity: 0.78;
+        }
+        100% {
+          transform: scale(1.75);
+          opacity: 0;
+        }
+      }
+
+      @keyframes eq-bar {
+        0%,
+        100% {
+          transform: scaleY(0.32);
+        }
+        50% {
+          transform: scaleY(1);
+        }
+      }
+
+      @keyframes tick-pop {
+        0% {
+          transform: scale(1.18);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      @keyframes drop-slam {
+        0% {
+          transform: scale(1.55);
+          opacity: 0.45;
+        }
+        65% {
+          transform: scale(0.95);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      @keyframes shake-mild {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0);
+        }
+        25% {
+          transform: translate3d(-2px, 1px, 0);
+        }
+        50% {
+          transform: translate3d(2px, -1px, 0);
+        }
+        75% {
+          transform: translate3d(-1px, -2px, 0);
+        }
+      }
+
+      @keyframes shake-strong {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0) rotate(0deg);
+        }
+        20% {
+          transform: translate3d(-5px, 3px, 0) rotate(-0.8deg);
+        }
+        40% {
+          transform: translate3d(5px, -3px, 0) rotate(0.8deg);
+        }
+        60% {
+          transform: translate3d(-4px, -2px, 0) rotate(-0.5deg);
+        }
+        80% {
+          transform: translate3d(4px, 3px, 0) rotate(0.5deg);
+        }
+      }
+
+      @keyframes shake-extreme {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0) rotate(0deg);
+        }
+        15% {
+          transform: translate3d(-8px, 4px, 0) rotate(-1.6deg);
+        }
+        30% {
+          transform: translate3d(7px, -5px, 0) rotate(1.6deg);
+        }
+        45% {
+          transform: translate3d(-6px, -4px, 0) rotate(-1.2deg);
+        }
+        60% {
+          transform: translate3d(8px, 4px, 0) rotate(1.4deg);
+        }
+        75% {
+          transform: translate3d(-5px, 5px, 0) rotate(-1deg);
+        }
+      }
+
+      @keyframes glitch-rgb {
+        0%,
+        100% {
+          text-shadow:
+            -3px 0 #06f0d6,
+            3px 0 #ff003c,
+            0 0 26px rgba(255, 0, 60, 0.7);
+          transform: skewX(0deg);
+        }
+        20% {
+          text-shadow:
+            -6px 1px #06f0d6,
+            6px -1px #ff003c,
+            0 0 36px rgba(255, 0, 60, 0.9);
+          transform: skewX(-2deg);
+        }
+        40% {
+          text-shadow:
+            4px -2px #06f0d6,
+            -4px 2px #ff003c,
+            0 0 22px rgba(6, 240, 214, 0.65);
+          transform: skewX(1.5deg);
+        }
+        60% {
+          text-shadow:
+            -5px 0 #06f0d6,
+            5px 0 #ff003c,
+            0 0 30px rgba(255, 0, 60, 0.85);
+          transform: skewX(-1deg);
+        }
+      }
+
+      @keyframes confetti-fall {
+        0% {
+          transform: translateY(-20px) rotate(0deg);
+          opacity: 0;
+        }
+        15% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(360px) rotate(520deg);
+          opacity: 0;
+        }
+      }
+
+      @keyframes sparkle-burst {
+        0%,
+        100% {
+          transform: scale(0.4) rotate(0deg);
+          opacity: 0.2;
+        }
+        50% {
+          transform: scale(1.25) rotate(90deg);
+          opacity: 1;
+        }
+      }
+
+      @keyframes lightning-flash {
+        0%,
+        100% {
+          opacity: 0;
+        }
+        8% {
+          opacity: 0.88;
+        }
+        14% {
+          opacity: 0.08;
+        }
+        20% {
+          opacity: 0.65;
+        }
+        30% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes ember-rise {
+        0% {
+          transform: translateY(0) scale(1);
+          opacity: 0;
+        }
+        20% {
+          opacity: 0.95;
+        }
+        100% {
+          transform: translateY(-340px) scale(0.35);
+          opacity: 0;
+        }
+      }
+
+      .animate-tick-pop {
+        animation: tick-pop 120ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+
+      .animate-drop-slam {
+        animation: drop-slam 340ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      .animate-shake-mild {
+        animation: shake-mild 260ms ease-in-out infinite;
+      }
+
+      .animate-shake-strong {
+        animation: shake-strong 180ms ease-in-out infinite;
+      }
+
+      .animate-shake-extreme {
+        animation: shake-extreme 130ms ease-in-out infinite;
+      }
+
+      .animate-glitch-rgb {
+        animation: glitch-rgb 420ms steps(2, end) infinite;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .beat-ring,
+        .beat-core,
+        .eq-bar,
+        .animate-tick-pop,
+        .animate-drop-slam,
+        .animate-shake-mild,
+        .animate-shake-strong,
+        .animate-shake-extreme,
+        .animate-glitch-rgb {
+          animation: none !important;
+        }
+      }
+    </style>
+  <script src="/_aistudio-iframe.js?v=29045eb3"></script><script src="https://cdn.jsdelivr.net/npm/html2canvas-pro@2.0.4"></script><style>.aistudio-hover-highlight { box-shadow: inset 0 0 0 0.5px white, inset 0 0 0 1.5px rgba(128,128,128,0.6) !important; }.aistudio-active-highlight { outline: 2px solid #87a9ff !important; outline-offset: -2px !important; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.3), inset 0 0 0 0.5px rgba(0,0,0,0.3) !important; }.aistudio-generating-blur { filter: blur(5px) grayscale(100%) brightness(28%) !important; transition: filter 0.3s ease; }#aistudio-focus-mode-tag { position: absolute; display: none; align-items: center; gap: 4px; background: #87a9ff; border-radius: 12px; z-index: 10000; padding: 8px; color: #32302c; font-family: Inter, sans-serif; font-size: 14px; font-style: normal; font-weight: 500; line-height: 21px; pointer-events: none; }#aistudio-hover-mode-tag { position: absolute; display: none; align-items: center; gap: 4px; background: rgba(128,128,128,0.6); border-radius: 12px; z-index: 10000; padding: 8px; color: white; font-family: Inter, sans-serif; font-size: 14px; font-style: normal; font-weight: 500; line-height: 21px; pointer-events: none; }.aistudio-img-icon { display: none; vertical-align: middle; pointer-events: auto; cursor: pointer; }.aistudio-img-icon.visible { display: inline-flex; }#aistudio-focus-mode-tag .aistudio-img-icon { position: relative; width: 26px; height: 26px; background: #32302c; border-radius: 6px; margin: -4px -4px -4px 0; }#aistudio-focus-mode-tag .aistudio-img-icon::before { content: ""; position: absolute; top: 4px; left: 4px; width: 18px; height: 18px; background-color: white; -webkit-mask-image: url("https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/edit_fix_auto/default/24px.svg"); -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; mask-image: url("https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/edit_fix_auto/default/24px.svg"); mask-size: contain; mask-repeat: no-repeat; }#aistudio-hover-mode-tag .aistudio-img-icon { position: relative; width: 18px; height: 18px; margin-left: 4px; }#aistudio-hover-mode-tag .aistudio-img-icon::before { content: ""; position: absolute; top: 0; left: 0; width: 18px; height: 18px; background-color: white; -webkit-mask-image: url("https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/edit_fix_auto/default/24px.svg"); -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; mask-image: url("https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/edit_fix_auto/default/24px.svg"); mask-size: contain; mask-repeat: no-repeat; }#aistudio-focus-mode-tag .aistudio-img-icon:hover, #aistudio-hover-mode-tag .aistudio-img-icon:hover { background: #424242 !important; }#aistudio-focus-mode-tag .aistudio-img-icon:active, #aistudio-hover-mode-tag .aistudio-img-icon:active { background: #393f51 !important; }</style></head>
+  <body>
+    <div class="ambient-backdrop" aria-hidden="true"></div>
+    <div id="app-root" class="app-shell"></div>
+
+    <script>
+      (function () {
+        'use strict';
+
+        // =====================================================================
+        // 1. Domain Constants & Empirical 2023~2026 March G2 Benchmarks
+        // =====================================================================
+        var SUBJECTS = [
+          {
+            id: '공통수학1',
+            name: '공통수학1',
+            stageLabel: '고1 정규 과목',
+            topicsSummary: '다항식 · 방정식과 부등식 · 경우의 수 · 행렬',
+            baseline: 42,
+            offsets: { 고1: 11, 고2: -7, 고3: -22 },
+          },
+          {
+            id: '공통수학2',
+            name: '공통수학2',
+            stageLabel: '고1 정규 과목',
+            topicsSummary: '도형의 방정식 · 집합과 명제 · 함수',
+            baseline: 45,
+            offsets: { 고1: 11, 고2: -7, 고3: -22 },
+          },
+          {
+            id: '대수',
+            name: '대수',
+            stageLabel: '고2 학습 · 수능 출제',
+            topicsSummary: '지수함수와 로그함수 · 삼각함수 · 수열',
+            baseline: 49,
+            offsets: { 고1: 27, 고2: 7, 고3: -3 },
+          },
+          {
+            id: '확률과 통계',
+            name: '확률과 통계',
+            stageLabel: '고2 학습 · 수능 출제',
+            topicsSummary: '경우의 수 · 확률 · 통계적 추정',
+            baseline: 47,
+            offsets: { 고1: 24, 고2: 6, 고3: -3 },
+          },
+          {
+            id: '미적분1',
+            name: '미적분1',
+            stageLabel: '고2 학습 · 수능 출제',
+            topicsSummary: '함수의 극한과 연속 · 다항함수의 미분과 적분',
+            baseline: 52,
+            offsets: { 고1: 29, 고2: 8, 고3: -3 },
+          },
+          {
+            id: '미적분2',
+            name: '미적분2',
+            stageLabel: '고2~3 심화 과목',
+            topicsSummary: '수열의 극한 · 초월함수 미분법 · 여러 가지 적분법',
+            baseline: 58,
+            offsets: { 고1: 33, 고2: 14, 고3: 0 },
+          },
+          {
+            id: '기하',
+            name: '기하',
+            stageLabel: '고2~3 심화 과목',
+            topicsSummary: '이차곡선 · 평면벡터 · 공간도형과 공간좌표',
+            baseline: 56,
+            offsets: { 고1: 31, 고2: 13, 고3: 0 },
+          },
+        ];
+
+        var COHORTS = [
+          {
+            id: '고1',
+            name: '고1',
+            subtitle: '고등학교 1학년 응시 집단',
+            proficiencyNote:
+              '공통수학1·2를 정규 학습 중이며, 고2 이상 심화 과정은 미이수·선행 초기 비율이 높습니다.',
+          },
+          {
+            id: '고2',
+            name: '고2',
+            subtitle: '고등학교 2학년 응시 집단',
+            proficiencyNote:
+              '공통수학을 이미 이수해 숙련도가 높고, 대수·확률과 통계·미적분1을 본격적으로 학습하는 단계입니다.',
+          },
+          {
+            id: '고3',
+            name: '고3',
+            subtitle: '고등학교 3학년 (수험생) 응시 집단',
+            proficiencyNote:
+              '전 학년 공통·수능 과목과 실전 기출 풀이 훈련이 누적되어 고1·고2 과정 문항의 오답률이 현저히 낮습니다.',
+          },
+        ];
+
+        var HINT_OPTIONS = [
+          { id: 'auto', label: '자동 판독' },
+          { id: 'basic', label: '2~3점 기본' },
+          { id: 'standard', label: '4점 표준' },
+          { id: 'killer', label: '준킬러·킬러' },
+        ];
+
+        // 2023~2026 3월 고2 전국연합학력평가 (공통수학1·2, 100분) 실측 오답률 TOP15 기준표
+        var MARCH_G2_BENCHMARKS = [
+          { year: 2026, number: 9, points: 3, format: '객관식', errorRate: 35.4, subjectArea: '공통수학1' },
+          { year: 2026, number: 14, points: 4, format: '객관식', errorRate: 44.2, subjectArea: '공통수학2' },
+          { year: 2026, number: 15, points: 4, format: '객관식', errorRate: 42.2, subjectArea: '공통수학1' },
+          { year: 2026, number: 16, points: 4, format: '객관식', errorRate: 49.5, subjectArea: '공통수학1' },
+          { year: 2026, number: 17, points: 4, format: '객관식', errorRate: 51.8, subjectArea: '공통수학2' },
+          { year: 2026, number: 18, points: 4, format: '객관식', errorRate: 68.7, subjectArea: '공통수학1' },
+          { year: 2026, number: 19, points: 4, format: '객관식', errorRate: 57.3, subjectArea: '공통수학2' },
+          { year: 2026, number: 20, points: 4, format: '객관식', errorRate: 62.4, subjectArea: '공통수학1' },
+          { year: 2026, number: 21, points: 4, format: '객관식', errorRate: 69.3, subjectArea: '공통수학2' },
+          { year: 2026, number: 25, points: 3, format: '주관식', errorRate: 47.6, subjectArea: '공통수학2' },
+          { year: 2026, number: 26, points: 4, format: '주관식', errorRate: 53.1, subjectArea: '공통수학1' },
+          { year: 2026, number: 27, points: 4, format: '주관식', errorRate: 83.8, subjectArea: '공통수학1' },
+          { year: 2026, number: 28, points: 4, format: '주관식', errorRate: 86.4, subjectArea: '공통수학2' },
+          { year: 2026, number: 29, points: 4, format: '주관식', errorRate: 87.0, subjectArea: '공통수학1' },
+          { year: 2026, number: 30, points: 4, format: '주관식', errorRate: 95.5, subjectArea: '공통수학2' },
+          { year: 2025, number: 12, points: 3, format: '객관식', errorRate: 46.7, subjectArea: '공통수학2' },
+          { year: 2025, number: 15, points: 4, format: '객관식', errorRate: 44.4, subjectArea: '공통수학2' },
+          { year: 2025, number: 17, points: 4, format: '객관식', errorRate: 68.5, subjectArea: '공통수학1' },
+          { year: 2025, number: 21, points: 4, format: '객관식', errorRate: 79.9, subjectArea: '공통수학1' },
+          { year: 2025, number: 24, points: 3, format: '주관식', errorRate: 36.6, subjectArea: '공통수학1' },
+          { year: 2025, number: 28, points: 4, format: '주관식', errorRate: 87.6, subjectArea: '공통수학2' },
+          { year: 2025, number: 29, points: 4, format: '주관식', errorRate: 97.4, subjectArea: '공통수학2' },
+          { year: 2025, number: 30, points: 4, format: '주관식', errorRate: 98.9, subjectArea: '공통수학2' },
+          { year: 2024, number: 13, points: 3, format: '객관식', errorRate: 46.4, subjectArea: '공통수학2' },
+          { year: 2024, number: 15, points: 4, format: '객관식', errorRate: 75.6, subjectArea: '공통수학1' },
+          { year: 2024, number: 18, points: 4, format: '객관식', errorRate: 75.4, subjectArea: '공통수학1' },
+          { year: 2024, number: 23, points: 3, format: '주관식', errorRate: 44.5, subjectArea: '공통수학2' },
+          { year: 2024, number: 27, points: 4, format: '주관식', errorRate: 91.7, subjectArea: '공통수학2' },
+          { year: 2024, number: 29, points: 4, format: '주관식', errorRate: 88.8, subjectArea: '공통수학1' },
+          { year: 2024, number: 30, points: 4, format: '주관식', errorRate: 93.8, subjectArea: '공통수학2' },
+          { year: 2023, number: 16, points: 4, format: '객관식', errorRate: 65.8, subjectArea: '공통수학2' },
+          { year: 2023, number: 19, points: 4, format: '객관식', errorRate: 73.5, subjectArea: '공통수학2' },
+          { year: 2023, number: 21, points: 4, format: '객관식', errorRate: 79.4, subjectArea: '공통수학2' },
+          { year: 2023, number: 27, points: 4, format: '주관식', errorRate: 77.4, subjectArea: '공통수학1' },
+          { year: 2023, number: 28, points: 4, format: '주관식', errorRate: 80.4, subjectArea: '공통수학1' },
+          { year: 2023, number: 29, points: 4, format: '주관식', errorRate: 94.1, subjectArea: '공통수학2' },
+          { year: 2023, number: 30, points: 4, format: '주관식', errorRate: 95.6, subjectArea: '공통수학2' },
+        ];
+
+        // =====================================================================
+        // 2. Inline SVG Icons & Custom Skull SVG
+        // =====================================================================
+        function svgIcon(name, cls) {
+          var c = cls || '';
+          var base =
+            'width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="' +
+            c +
+            '"';
+          if (name === 'volume-on') {
+            return (
+              '<svg ' +
+              base +
+              '><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>'
+            );
+          }
+          if (name === 'volume-off') {
+            return (
+              '<svg ' +
+              base +
+              '><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>'
+            );
+          }
+          if (name === 'arrow-right') {
+            return (
+              '<svg ' +
+              base +
+              '><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>'
+            );
+          }
+          if (name === 'arrow-left') {
+            return (
+              '<svg ' +
+              base +
+              '><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>'
+            );
+          }
+          if (name === 'camera') {
+            return (
+              '<svg ' +
+              base.replace(/16/g, '20') +
+              '><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>'
+            );
+          }
+          if (name === 'image') {
+            return (
+              '<svg ' +
+              base.replace(/16/g, '20') +
+              '><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>'
+            );
+          }
+          if (name === 'rotate') {
+            return (
+              '<svg ' +
+              base +
+              '><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>'
+            );
+          }
+          if (name === 'play') {
+            return '<svg ' + base + '><polygon points="6 3 20 12 6 21 6 3"/></svg>';
+          }
+          if (name === 'sparkles') {
+            return (
+              '<svg ' +
+              base +
+              '><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
+            );
+          }
+          if (name === 'alert') {
+            return (
+              '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#fbbf24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'
+            );
+          }
+          if (name === 'download') {
+            return (
+              '<svg ' +
+              base +
+              '><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+            );
+          }
+          return '';
+        }
+
+        function buildSkullSvg() {
+          return (
+            '<svg viewBox="0 0 128 128" width="112" height="112" fill="none" aria-hidden="true" style="margin-bottom:8px;filter:drop-shadow(0 0 24px rgba(255,0,60,0.75))">' +
+            '<defs><radialGradient id="skullGlow" cx="50%" cy="42%" r="55%">' +
+            '<stop offset="0%" stop-color="#ff2a5f" stop-opacity="0.4"/>' +
+            '<stop offset="70%" stop-color="#991b1b" stop-opacity="0.14"/>' +
+            '<stop offset="100%" stop-color="#000000" stop-opacity="0"/>' +
+            '</radialGradient></defs>' +
+            '<circle cx="64" cy="64" r="60" fill="url(#skullGlow)"/>' +
+            '<path d="M22 30L42 46M106 30L86 46M22 96L40 82M106 96L88 82" stroke="#ff003c" stroke-width="5" stroke-linecap="round" opacity="0.85"/>' +
+            '<path d="M64 16C39 16 22 34 22 57C22 71 29 82 38 89V101C38 106 42 110 47 110H81C86 110 90 106 90 101V89C99 82 106 71 106 57C106 34 89 16 64 16Z" fill="#0f070c" stroke="#ff2a5f" stroke-width="3.5" stroke-linejoin="round"/>' +
+            '<path d="M33 44C37 29 50 22 64 22" stroke="#06f0d6" stroke-width="2" stroke-linecap="round" opacity="0.6"/>' +
+            '<ellipse cx="46" cy="58" rx="11" ry="12" fill="#050205" stroke="#ff2a5f" stroke-width="2.5"/>' +
+            '<ellipse cx="82" cy="58" rx="11" ry="12" fill="#050205" stroke="#ff2a5f" stroke-width="2.5"/>' +
+            '<circle cx="46" cy="58" r="4.5" fill="#ff003c"/><circle cx="82" cy="58" r="4.5" fill="#ff003c"/>' +
+            '<circle cx="46" cy="58" r="2" fill="#ffffff"/><circle cx="82" cy="58" r="2" fill="#ffffff"/>' +
+            '<path d="M64 67L57 81H71L64 67Z" fill="#ff2a5f"/>' +
+            '<path d="M46 96H82M53 90V108M64 90V108M75 90V108" stroke="#ff2a5f" stroke-width="3" stroke-linecap="round"/>' +
+            '</svg>'
+          );
+        }
+
+        // =====================================================================
+        // 3. Shorts Reveal Scheduling & Tier System
+        // =====================================================================
+        function clampIntegerPercent(val) {
+          var n = typeof val === 'number' ? val : Number(val);
+          if (!Number.isFinite(n)) return 50;
+          return Math.round(Math.min(100, Math.max(0, n)));
+        }
+
+        function getRevealTier(errorRate) {
+          var rate = clampIntegerPercent(errorRate);
+          if (rate <= 20) {
+            return {
+              id: 'easy',
+              rangeLabel: '0~20%',
+              tierName: '쉬움',
+              phrase: '틀리면 소나무',
+              emoji: '🌲',
+              useSkull: false,
+              effectKind: 'confetti',
+              shakeLevel: 0,
+              accentHex: '#22c55e',
+              tierClass: 'tier-easy',
+              textGlow: '0 0 28px rgba(74, 222, 128, 0.55)',
+              subline: '기본 개념 위주 · 실수만 조심하면 정답',
+            };
+          }
+          if (rate <= 40) {
+            return {
+              id: 'tasty',
+              rangeLabel: '21~40%',
+              tierName: '무난',
+              phrase: '맛@있는 문제',
+              emoji: '😋',
+              useSkull: false,
+              effectKind: 'sparkles',
+              shakeLevel: 0,
+              accentHex: '#d9f99d',
+              tierClass: 'tier-tasty',
+              textGlow: '0 0 28px rgba(250, 204, 21, 0.5)',
+              subline: '적당한 난이도 · 확실히 맞추고 넘어갈 문항',
+            };
+          }
+          if (rate <= 60) {
+            return {
+              id: 'strong',
+              rangeLabel: '41~60%',
+              tierName: '변별',
+              phrase: '인간계 최강',
+              emoji: '😰',
+              useSkull: false,
+              effectKind: 'mild-shake',
+              shakeLevel: 1,
+              accentHex: '#fb923c',
+              tierClass: 'tier-strong',
+              textGlow: '0 0 30px rgba(251, 146, 60, 0.6)',
+              subline: '본격 변별 구간 · 발상과 계산 실수 주의',
+            };
+          }
+          if (rate <= 80) {
+            return {
+              id: 'shock',
+              rangeLabel: '61~80%',
+              tierName: '고난도',
+              phrase: '수학공부 좀 하셨나봐?',
+              emoji: '😱',
+              useSkull: false,
+              effectKind: 'lightning',
+              shakeLevel: 2,
+              accentHex: '#ff2a5f',
+              tierClass: 'tier-shock',
+              textGlow: '0 0 34px rgba(255, 42, 95, 0.72)',
+              subline: '준킬러 구간 · 다단계 추론과 시간 압박',
+            };
+          }
+          return {
+            id: 'endgame',
+            rangeLabel: '81~100%',
+            tierName: '매우 어려움',
+            phrase: '종결',
+            emoji: '💀',
+            useSkull: true,
+            effectKind: 'inferno-glitch',
+            shakeLevel: 3,
+            accentHex: '#ff003c',
+            tierClass: 'tier-endgame',
+            textGlow:
+              '-3px 0 rgba(6,240,214,0.85), 3px 0 rgba(255,0,60,0.9), 0 0 36px rgba(255,0,60,0.75)',
+            subline: '💀 극악 킬러 · 최상위권 변별 종결 문항',
+          };
+        }
+
+        function buildCountUpSteps(targetRate) {
+          var target = clampIntegerPercent(targetRate);
+          if (target === 0) return [0];
+          var steps = [0];
+          var current = 0;
+          while (current < target) {
+            var remaining = target - current;
+            var delta;
+            if (remaining <= 3) delta = 1;
+            else if (remaining <= 8) delta = 2;
+            else if (remaining <= 20) delta = Math.max(3, Math.ceil(remaining / 4));
+            else delta = Math.max(5, Math.ceil(remaining / 5));
+            current = Math.min(target, current + delta);
+            steps.push(current);
+          }
+          return steps;
+        }
+
+        function getStepBpm(stepIndex, totalSteps, targetRate) {
+          var target = clampIntegerPercent(targetRate);
+          var ratio =
+            totalSteps <= 1 ? 1 : Math.min(1, Math.max(0, stepIndex / (totalSteps - 1)));
+          var maxBpm = 172 + Math.round((target / 100) * 48);
+          return Math.round(130 + ratio * (maxBpm - 130));
+        }
+
+        function getBeatIntervalMs(stepIndex, totalSteps, targetRate) {
+          return Math.round(30000 / getStepBpm(stepIndex, totalSteps, targetRate));
+        }
+
+        function buildRevealSchedule(targetRate) {
+          var steps = buildCountUpSteps(targetRate);
+          if (steps.length <= 1) {
+            return {
+              steps: steps,
+              stepOffsetsMs: [60],
+              stepBpms: [130],
+              stopOffsetMs: 60,
+              dropOffsetMs: 380,
+            };
+          }
+          var stepOffsetsMs = [];
+          var stepBpms = [];
+          var elapsed = 60;
+          for (var i = 0; i < steps.length; i++) {
+            stepOffsetsMs.push(elapsed);
+            stepBpms.push(getStepBpm(i, steps.length, targetRate));
+            if (i < steps.length - 1) {
+              elapsed += getBeatIntervalMs(i, steps.length, targetRate);
+            }
+          }
+          var stopOffsetMs = elapsed + 80;
+          var dropOffsetMs = stopOffsetMs + 340;
+          return {
+            steps: steps,
+            stepOffsetsMs: stepOffsetsMs,
+            stepBpms: stepBpms,
+            stopOffsetMs: stopOffsetMs,
+            dropOffsetMs: dropOffsetMs,
+          };
+        }
+
+        function getCountUpShakeLevel(v) {
+          var n = clampIntegerPercent(v);
+          if (n < 28) return 0;
+          if (n < 55) return 1;
+          if (n < 78) return 2;
+          return 3;
+        }
+
+        function shakeClassForLevel(level) {
+          if (level === 1) return 'animate-shake-mild';
+          if (level === 2) return 'animate-shake-strong';
+          if (level === 3) return 'animate-shake-extreme';
+          return '';
+        }
+
+        function getPredictionMeta(result) {
+          var rate = clampIntegerPercent(result.errorRate);
+          var isCommonMath =
+            result.selectedSubject === '공통수학1' || result.selectedSubject === '공통수학2';
+          var halfSpread = isCommonMath ? 4 : 6;
+          if (!result.subjectMatchesSelection) halfSpread += 2;
+          if (rate <= 10 || rate >= 92) halfSpread = Math.max(3, halfSpread - 1);
+
+          var confidencePercent = isCommonMath ? 91 : 84;
+          if (!result.subjectMatchesSelection) confidencePercent -= 9;
+          if (result.reasoningLines.length < 3) confidencePercent -= 3;
+          confidencePercent = Math.min(96, Math.max(68, confidencePercent));
+
+          return {
+            expectedRangeMin: Math.max(0, rate - halfSpread),
+            expectedRangeMax: Math.min(100, rate + halfSpread),
+            confidencePercent: confidencePercent,
+            confidenceLabel: confidencePercent >= 82 ? '높음' : '보통',
+          };
+        }
+
+        // =====================================================================
+        // 4. Web Audio API Brazilian Phonk Synthesizer (130 BPM, currentTime)
+        // =====================================================================
+        var COWBELL_PATTERN = [831, 0, 831, 932, 0, 831, 1046, 0];
+
+        function PhonkAudioEngine() {
+          this.ctx = null;
+          this.masterGain = null;
+          this.noiseBuffer = null;
+          this.muted = false;
+          this.loopTimer = null;
+          this.nextNoteTime = 0;
+          this.stepIndex = 0;
+        }
+
+        PhonkAudioEngine.prototype.getOrCreateContext = function (triggerSource) {
+          if (this.ctx) return this.ctx;
+          var AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) {
+            console.warn('[phonkAudio] Web Audio API not supported.');
+            return null;
+          }
+          try {
+            this.ctx = new AudioCtx();
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.value = this.muted ? 0 : 0.8;
+            this.masterGain.gain.setValueAtTime(this.muted ? 0 : 0.8, this.ctx.currentTime);
+            this.masterGain.connect(this.ctx.destination);
+            this.noiseBuffer = this.createNoiseBuffer(this.ctx);
+            console.info(
+              '[phonkAudio] AudioContext created via "' +
+                triggerSource +
+                '" | state=' +
+                this.ctx.state +
+                ' | sampleRate=' +
+                this.ctx.sampleRate +
+                ' | masterGain=' +
+                this.masterGain.gain.value
+            );
+            return this.ctx;
+          } catch (err) {
+            console.error('[phonkAudio] AudioContext init failed:', err);
+            return null;
+          }
+        };
+
+        PhonkAudioEngine.prototype.createNoiseBuffer = function (ctx) {
+          var len = Math.floor(ctx.sampleRate * 0.5);
+          var buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+          var data = buffer.getChannelData(0);
+          for (var i = 0; i < len; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          return buffer;
+        };
+
+        PhonkAudioEngine.prototype.unlockAndResume = async function (triggerSource) {
+          var ctx = this.getOrCreateContext(triggerSource || 'user');
+          if (!ctx) return false;
+          try {
+            if (ctx.state !== 'running') {
+              await ctx.resume();
+            }
+            if (this.masterGain) {
+              var g = this.muted ? 0 : 0.8;
+              this.masterGain.gain.value = g;
+              this.masterGain.gain.setValueAtTime(g, ctx.currentTime);
+            }
+            console.info('[phonkAudio] unlockAndResume("' + triggerSource + '") -> ' + ctx.state);
+            return ctx.state === 'running';
+          } catch (err) {
+            console.error('[phonkAudio] resume() failed:', err);
+            return false;
+          }
+        };
+
+        PhonkAudioEngine.prototype.ensureRunning = async function () {
+          if (!this.ctx) return null;
+          if (this.ctx.state !== 'running') {
+            try {
+              await this.ctx.resume();
+            } catch (err) {
+              console.error('[phonkAudio] ensureRunning failed:', err);
+              return null;
+            }
+          }
+          return this.ctx.state === 'running' ? this.ctx : null;
+        };
+
+        PhonkAudioEngine.prototype.setMuted = function (muted) {
+          this.muted = muted;
+          if (muted) this.stopAnalyzingLoop();
+          if (this.ctx && this.masterGain) {
+            var g = muted ? 0 : 0.8;
+            this.masterGain.gain.value = g;
+            this.masterGain.gain.setValueAtTime(g, this.ctx.currentTime);
+          }
+        };
+
+        PhonkAudioEngine.prototype.playTestBeep = async function () {
+          if (this.muted) return;
+          var ctx = await this.ensureRunning();
+          if (!ctx || !this.masterGain) return;
+          var t = ctx.currentTime + 0.01;
+          var osc = ctx.createOscillator();
+          var gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, t);
+          osc.frequency.exponentialRampToValueAtTime(1174.66, t + 0.09);
+          gain.gain.setValueAtTime(0.001, t);
+          gain.gain.linearRampToValueAtTime(0.32, t + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(t);
+          osc.stop(t + 0.11);
+        };
+
+        PhonkAudioEngine.prototype.triggerKick = function (time, punch) {
+          if (!this.ctx || !this.masterGain) return;
+          var p = punch || 1;
+          var osc = this.ctx.createOscillator();
+          var gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(155 * Math.min(1.25, p), time);
+          osc.frequency.exponentialRampToValueAtTime(42, time + 0.14);
+          gain.gain.setValueAtTime(0.85 * Math.min(1.15, p), time);
+          gain.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(time);
+          osc.stop(time + 0.24);
+        };
+
+        PhonkAudioEngine.prototype.triggerBass = function (time, freq, duration) {
+          if (!this.ctx || !this.masterGain) return;
+          var osc = this.ctx.createOscillator();
+          var filter = this.ctx.createBiquadFilter();
+          var gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq || 55, time);
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(240, time);
+          filter.frequency.exponentialRampToValueAtTime(95, time + (duration || 0.22));
+          gain.gain.setValueAtTime(0.42, time);
+          gain.gain.exponentialRampToValueAtTime(0.001, time + (duration || 0.22));
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(time);
+          osc.stop(time + (duration || 0.22) + 0.02);
+        };
+
+        PhonkAudioEngine.prototype.triggerCowbell = function (time, freq, intensity) {
+          if (!this.ctx || !this.masterGain) return;
+          var inten = intensity || 1;
+          var osc1 = this.ctx.createOscillator();
+          var osc2 = this.ctx.createOscillator();
+          var bp = this.ctx.createBiquadFilter();
+          var gain = this.ctx.createGain();
+          osc1.type = 'square';
+          osc2.type = 'square';
+          osc1.frequency.setValueAtTime(freq, time);
+          osc2.frequency.setValueAtTime(freq * 1.482, time);
+          bp.type = 'bandpass';
+          bp.frequency.setValueAtTime(freq * 1.25, time);
+          bp.Q.setValueAtTime(2.6, time);
+          gain.gain.setValueAtTime(0.24 * inten, time);
+          gain.gain.exponentialRampToValueAtTime(0.001, time + 0.095);
+          osc1.connect(bp);
+          osc2.connect(bp);
+          bp.connect(gain);
+          gain.connect(this.masterGain);
+          osc1.start(time);
+          osc2.start(time);
+          osc1.stop(time + 0.11);
+          osc2.stop(time + 0.11);
+        };
+
+        PhonkAudioEngine.prototype.triggerHiHat = function (time, open) {
+          if (!this.ctx || !this.masterGain || !this.noiseBuffer) return;
+          var src = this.ctx.createBufferSource();
+          src.buffer = this.noiseBuffer;
+          var hp = this.ctx.createBiquadFilter();
+          hp.type = 'highpass';
+          hp.frequency.setValueAtTime(6800, time);
+          var gain = this.ctx.createGain();
+          var dur = open ? 0.12 : 0.045;
+          gain.gain.setValueAtTime(open ? 0.18 : 0.12, time);
+          gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+          src.connect(hp);
+          hp.connect(gain);
+          gain.connect(this.masterGain);
+          src.start(time);
+          src.stop(time + dur + 0.01);
+        };
+
+        PhonkAudioEngine.prototype.startAnalyzingLoop = async function () {
+          if (this.muted || this.loopTimer !== null) return;
+          var ctx = await this.ensureRunning();
+          if (!ctx) return;
+          var self = this;
+          var eighthSec = 60 / 130 / 2;
+          this.stepIndex = 0;
+          this.nextNoteTime = ctx.currentTime + 0.03;
+
+          var scheduleAhead = function () {
+            if (self.muted || !self.ctx) return;
+            while (self.nextNoteTime < self.ctx.currentTime + 0.12) {
+              var s = self.stepIndex % 8;
+              if (s % 2 === 0) {
+                self.triggerKick(self.nextNoteTime, 0.92);
+              }
+              if (s === 0 || s === 3 || s === 6) {
+                self.triggerBass(self.nextNoteTime, s === 6 ? 61.74 : 55, 0.19);
+              }
+              self.triggerHiHat(self.nextNoteTime, s === 7);
+              var cowFreq = COWBELL_PATTERN[s];
+              if (cowFreq > 0) {
+                self.triggerCowbell(self.nextNoteTime, cowFreq, 0.85);
+              }
+              self.nextNoteTime += eighthSec;
+              self.stepIndex++;
+            }
+          };
+
+          scheduleAhead();
+          this.loopTimer = window.setInterval(scheduleAhead, 35);
+        };
+
+        PhonkAudioEngine.prototype.stopAnalyzingLoop = function () {
+          if (this.loopTimer !== null) {
+            window.clearInterval(this.loopTimer);
+            this.loopTimer = null;
+          }
+        };
+
+        PhonkAudioEngine.prototype.scheduleRevealTimeline = async function (schedule, targetRate) {
+          this.stopAnalyzingLoop();
+          if (this.muted) return;
+          var ctx = await this.ensureRunning();
+          if (!ctx) return;
+
+          var baseTime = ctx.currentTime + 0.03;
+          var total = schedule.steps.length;
+
+          for (var i = 0; i < total; i++) {
+            var val = schedule.steps[i];
+            var t = baseTime + schedule.stepOffsetsMs[i] / 1000;
+            var progress = total <= 1 ? 1 : i / (total - 1);
+            var pitch = 660 + progress * (420 + (targetRate / 100) * 320);
+
+            this.triggerCowbell(t, pitch, 0.9 + progress * 0.55);
+            this.triggerKick(t, 0.9 + progress * 0.35);
+            if (i % 2 === 1) this.triggerHiHat(t, false);
+            if (val >= 61) this.triggerBass(t, 55 + progress * 18, 0.14);
+          }
+
+          // Pre-drop "쿵"
+          var stopTime = baseTime + schedule.stopOffsetMs / 1000;
+          this.triggerKick(stopTime, 1.45);
+          this.triggerBass(stopTime, 41.2, 0.26);
+
+          // Final Drop Impact
+          var dropTime = baseTime + schedule.dropOffsetMs / 1000;
+          this.triggerDropImpact(dropTime, targetRate);
+        };
+
+        PhonkAudioEngine.prototype.triggerDropImpact = function (t, errorRate) {
+          if (!this.ctx || !this.masterGain) return;
+          var rate = clampIntegerPercent(errorRate);
+
+          if (rate <= 20) {
+            var notes = [523.25, 659.25, 783.99, 1046.5];
+            for (var i = 0; i < notes.length; i++) {
+              var osc = this.ctx.createOscillator();
+              var gain = this.ctx.createGain();
+              osc.type = 'triangle';
+              osc.frequency.setValueAtTime(notes[i], t + i * 0.055);
+              gain.gain.setValueAtTime(0.28, t + i * 0.055);
+              gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.055 + 0.28);
+              osc.connect(gain);
+              gain.connect(this.masterGain);
+              osc.start(t + i * 0.055);
+              osc.stop(t + i * 0.055 + 0.3);
+            }
+            return;
+          }
+
+          if (rate <= 40) {
+            this.triggerKick(t, 1.05);
+            this.triggerCowbell(t, 880, 1.05);
+            this.triggerCowbell(t + 0.09, 1174.66, 0.95);
+            return;
+          }
+
+          if (rate <= 60) {
+            this.triggerKick(t, 1.25);
+            this.triggerBass(t, 55, 0.48);
+            this.triggerCowbell(t, 784, 1.15);
+            return;
+          }
+
+          if (rate <= 80) {
+            this.triggerKick(t, 1.45);
+            this.triggerBass(t, 46.25, 0.65);
+            this.triggerHiHat(t, true);
+            this.triggerCowbell(t, 740, 1.3);
+            this.triggerCowbell(t + 0.12, 987.77, 1.2);
+            return;
+          }
+
+          // 81~100%: Extreme killer impact + siren
+          this.triggerKick(t, 1.65);
+          this.triggerBass(t, 36.71, 0.85);
+          this.triggerHiHat(t, true);
+          this.triggerCowbell(t, 659.25, 1.35);
+
+          var siren = this.ctx.createOscillator();
+          var sirenGain = this.ctx.createGain();
+          siren.type = 'sawtooth';
+          siren.frequency.setValueAtTime(920, t + 0.04);
+          siren.frequency.linearRampToValueAtTime(420, t + 0.45);
+          siren.frequency.linearRampToValueAtTime(780, t + 0.72);
+          sirenGain.gain.setValueAtTime(0.24, t + 0.04);
+          sirenGain.gain.exponentialRampToValueAtTime(0.001, t + 0.78);
+          siren.connect(sirenGain);
+          sirenGain.connect(this.masterGain);
+          siren.start(t + 0.04);
+          siren.stop(t + 0.8);
+        };
+
+        var phonkAudio = new PhonkAudioEngine();
+
+        // =====================================================================
+        // 5. Image Preparation, Sample Generator & Local Pixel Feature Analyzer
+        // =====================================================================
+        var MAX_DIMENSION = 1280;
+        var ANALYSIS_MAX_DIM = 420;
+
+        function readFileAsDataUrl(file) {
+          return new Promise(function (resolve, reject) {
+            var reader = new FileReader();
+            reader.onload = function () {
+              if (typeof reader.result === 'string') resolve(reader.result);
+              else reject(new Error('이미지 파일을 읽을 수 없습니다.'));
+            };
+            reader.onerror = function () {
+              reject(new Error('이미지 파일을 읽는 중 오류가 발생했습니다.'));
+            };
+            reader.readAsDataURL(file);
+          });
+        }
+
+        function loadImageElement(src) {
+          return new Promise(function (resolve, reject) {
+            var img = new Image();
+            img.onload = function () {
+              resolve(img);
+            };
+            img.onerror = function () {
+              reject(new Error('이미지를 불러올 수 없습니다.'));
+            };
+            img.src = src;
+          });
+        }
+
+        async function prepareImageFile(file) {
+          var rawDataUrl = await readFileAsDataUrl(file);
+          try {
+            var source = null;
+            var width = 0;
+            var height = 0;
+            var cleanup = null;
+
+            try {
+              var img = await loadImageElement(rawDataUrl);
+              if (img.width > 0 && img.height > 0) {
+                source = img;
+                width = img.width;
+                height = img.height;
+              }
+            } catch (_e) {
+              if (typeof createImageBitmap === 'function') {
+                var bmp = await createImageBitmap(file);
+                source = bmp;
+                width = bmp.width;
+                height = bmp.height;
+                cleanup = function () {
+                  bmp.close();
+                };
+              }
+            }
+
+            if (!source) {
+              return { dataUrl: rawDataUrl, fileName: file.name };
+            }
+
+            var scale = Math.min(1, MAX_DIMENSION / Math.max(width, height));
+            var cw = Math.max(1, Math.round(width * scale));
+            var ch = Math.max(1, Math.round(height * scale));
+            var canvas = document.createElement('canvas');
+            canvas.width = cw;
+            canvas.height = ch;
+            var ctx = canvas.getContext('2d');
+            if (!ctx) {
+              if (cleanup) cleanup();
+              return { dataUrl: rawDataUrl, fileName: file.name };
+            }
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, cw, ch);
+            ctx.drawImage(source, 0, 0, cw, ch);
+            if (cleanup) cleanup();
+
+            var compressed = canvas.toDataURL('image/jpeg', 0.84);
+            return { dataUrl: compressed, fileName: file.name };
+          } catch (_err) {
+            return { dataUrl: rawDataUrl, fileName: file.name };
+          }
+        }
+
+        function createSampleProblemImage(kind) {
+          var canvas = document.createElement('canvas');
+          canvas.width = 960;
+          canvas.height = 640;
+          var ctx = canvas.getContext('2d');
+          if (!ctx) {
+            return { dataUrl: '', fileName: 'sample.png' };
+          }
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.strokeStyle = '#CBD5E1';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
+
+          ctx.fillStyle = '#475569';
+          ctx.font = '500 18px sans-serif';
+          ctx.fillText(
+            kind === 'common2'
+              ? '공통수학2 · 도형의 방정식 유형'
+              : '미적분1 · 다항함수의 미분법 유형',
+            52,
+            66
+          );
+
+          ctx.strokeStyle = '#E2E8F0';
+          ctx.beginPath();
+          ctx.moveTo(52, 84);
+          ctx.lineTo(canvas.width - 52, 84);
+          ctx.stroke();
+
+          ctx.fillStyle = '#0F172A';
+          if (kind === 'common2') {
+            ctx.font = '700 26px sans-serif';
+            ctx.fillText('18.', 52, 136);
+            ctx.font = '500 24px sans-serif';
+            ctx.fillText('좌표평면 위의 원  x² + y² - 4x - 6y + 9 = 0  과', 102, 136);
+            ctx.fillText('직선  3x - 4y + k = 0  이 서로 다른 두 점 A, B에서 만날 때,', 102, 178);
+            ctx.fillText(
+              '선분 AB의 길이가 2√3 이 되도록 하는 모든 실수 k의 값의 합은? [4점]',
+              102,
+              220
+            );
+
+            var cx = 735;
+            var cy = 400;
+            ctx.strokeStyle = '#94A3B8';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(cx - 130, cy + 40);
+            ctx.lineTo(cx + 130, cy + 40);
+            ctx.moveTo(cx - 40, cy - 130);
+            ctx.lineTo(cx - 40, cy + 120);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#0F172A';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(cx + 10, cy - 25, 72, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#1D4ED8';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(cx - 80, cy + 45);
+            ctx.lineTo(cx + 105, cy - 95);
+            ctx.stroke();
+
+            ctx.fillStyle = '#1E293B';
+            ctx.font = '500 18px sans-serif';
+            ctx.fillText('A', cx - 58, cy + 18);
+            ctx.fillText('B', cx + 62, cy - 72);
+
+            ctx.fillStyle = '#0F172A';
+            ctx.font = '500 23px sans-serif';
+            ctx.fillText('① 10        ② 12        ③ 14', 102, 340);
+            ctx.fillText('④ 16        ⑤ 18', 102, 396);
+          } else {
+            ctx.font = '700 26px sans-serif';
+            ctx.fillText('21.', 52, 136);
+            ctx.font = '500 23px sans-serif';
+            ctx.fillText(
+              '최고차항의 계수가 1인 삼차함수 f(x)가 다음 조건을 만족시킨다.',
+              102,
+              136
+            );
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1.6;
+            ctx.strokeRect(102, 168, 760, 152);
+            ctx.font = '500 21px sans-serif';
+            ctx.fillText('(가)  방정식 f(x) = 0 의 서로 다른 실근의 개수는 2이다.', 128, 214);
+            ctx.fillText(
+              '(나)  방정식 f(x - f(x)) = 0 의 서로 다른 실근의 개수는 3이다.',
+              128,
+              256
+            );
+            ctx.fillText("(다)  f(0) = 4,  f'(1) = 0", 128, 298);
+            ctx.font = '500 23px sans-serif';
+            ctx.fillText('함수 f(x)의 극댓값이 4일 때, f(4)의 값을 구하시오. [4점]', 102, 376);
+            ctx.fillStyle = '#475569';
+            ctx.font = '500 20px sans-serif';
+            ctx.fillText('단답형 문항 · 0 이상 999 이하의 자연수', 102, 434);
+          }
+
+          return {
+            dataUrl: canvas.toDataURL('image/png'),
+            fileName: kind === 'common2' ? 'sample_common2.png' : 'sample_calculus1.png',
+          };
+        }
+
+        async function extractVisualFeaturesFromImage(image) {
+          var sampleHint =
+            image.fileName === 'sample_common2.png'
+              ? 'common2'
+              : image.fileName === 'sample_calculus1.png'
+                ? 'calculus1'
+                : null;
+
+          var img = await loadImageElement(image.dataUrl);
+          var scale = Math.min(1, ANALYSIS_MAX_DIM / Math.max(img.width, img.height));
+          var w = Math.max(1, Math.round(img.width * scale));
+          var h = Math.max(1, Math.round(img.height * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          var ctx = canvas.getContext('2d');
+
+          if (!ctx) {
+            return {
+              width: img.width,
+              height: img.height,
+              meanBrightness: 240,
+              contrastStdDev: 40,
+              edgeDensity: 0.08,
+              saturationRatio: 0.02,
+              inkRatio: 0.08,
+              textLineCount: 4,
+              hasConditionBoxOrDiagram: false,
+              detectedFormat: '객관식',
+              formulaComplexityScore: 48,
+              sampleHint: sampleHint,
+            };
+          }
+
+          ctx.drawImage(img, 0, 0, w, h);
+          var data = ctx.getImageData(0, 0, w, h).data;
+          var pixelCount = w * h;
+          var gray = new Float32Array(pixelCount);
+          var sum = 0;
+          var satCount = 0;
+
+          for (var i = 0; i < pixelCount; i++) {
+            var idx = i * 4;
+            var r = data[idx];
+            var g = data[idx + 1];
+            var b = data[idx + 2];
+            var lum = 0.299 * r + 0.587 * g + 0.114 * b;
+            gray[i] = lum;
+            sum += lum;
+            if (Math.max(r, g, b) - Math.min(r, g, b) > 46) satCount++;
+          }
+
+          var meanBrightness = sum / pixelCount;
+          var sqDiffSum = 0;
+          for (var j = 0; j < pixelCount; j++) {
+            var d = gray[j] - meanBrightness;
+            sqDiffSum += d * d;
+          }
+          var contrastStdDev = Math.sqrt(sqDiffSum / pixelCount);
+
+          var isDarkBg = meanBrightness < 110;
+          var inkThreshold = isDarkBg
+            ? Math.min(220, meanBrightness + Math.max(28, contrastStdDev * 0.75))
+            : Math.max(35, meanBrightness - Math.max(28, contrastStdDev * 0.75));
+
+          var rowInkCounts = new Uint16Array(h);
+          var colInkCounts = new Uint16Array(w);
+          var totalInk = 0;
+          var edgeHits = 0;
+
+          for (var y = 0; y < h; y++) {
+            var rowOffset = y * w;
+            for (var x = 0; x < w; x++) {
+              var lumVal = gray[rowOffset + x];
+              var isInk = isDarkBg ? lumVal > inkThreshold : lumVal < inkThreshold;
+              if (isInk) {
+                totalInk++;
+                rowInkCounts[y]++;
+                colInkCounts[x]++;
+              }
+              if (x > 0 && y > 0) {
+                var gx = Math.abs(lumVal - gray[rowOffset + x - 1]);
+                var gy = Math.abs(lumVal - gray[(y - 1) * w + x]);
+                if (gx + gy > 44) edgeHits++;
+              }
+            }
+          }
+
+          var inkRatio = totalInk / pixelCount;
+          var edgeDensity = edgeHits / pixelCount;
+          var saturationRatio = satCount / pixelCount;
+
+          var activeRowThreshold = Math.max(2, Math.round(w * 0.015));
+          var textLineCount = 0;
+          var inBand = false;
+          var bandHeight = 0;
+          var strongHorizontalRows = 0;
+
+          for (var ry = 0; ry < h; ry++) {
+            var cnt = rowInkCounts[ry];
+            if (cnt >= w * 0.34) strongHorizontalRows++;
+            if (cnt >= activeRowThreshold) {
+              if (!inBand) {
+                inBand = true;
+                bandHeight = 1;
+              } else {
+                bandHeight++;
+              }
+            } else if (inBand) {
+              if (bandHeight >= 2) textLineCount++;
+              inBand = false;
+              bandHeight = 0;
+            }
+          }
+          if (inBand && bandHeight >= 2) textLineCount++;
+
+          var strongVerticalCols = 0;
+          for (var cx = 0; cx < w; cx++) {
+            if (colInkCounts[cx] >= h * 0.28) strongVerticalCols++;
+          }
+
+          var hasConditionBoxOrDiagram =
+            strongHorizontalRows >= 2 ||
+            strongVerticalCols >= 2 ||
+            (edgeDensity > 0.055 && inkRatio > 0.045);
+
+          var bottomStartY = Math.floor(h * 0.64);
+          var bottomBuckets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+          for (var by = bottomStartY; by < h; by++) {
+            var boff = by * w;
+            for (var bx = 0; bx < w; bx++) {
+              var blum = gray[boff + bx];
+              var bink = isDarkBg ? blum > inkThreshold : blum < inkThreshold;
+              if (bink) {
+                bottomBuckets[Math.min(9, Math.floor((bx / w) * 10))] = 1;
+              }
+            }
+          }
+          var activeBottomBuckets = bottomBuckets.reduce(function (a, b) {
+            return a + b;
+          }, 0);
+          var detectedFormat = activeBottomBuckets >= 4 ? '객관식' : '주관식';
+
+          var formulaComplexityScore = Math.min(
+            100,
+            Math.max(
+              15,
+              Math.round(
+                edgeDensity * 520 +
+                  textLineCount * 3.8 +
+                  (hasConditionBoxOrDiagram ? 14 : 0)
+              )
+            )
+          );
+
+          return {
+            width: img.width,
+            height: img.height,
+            meanBrightness: meanBrightness,
+            contrastStdDev: contrastStdDev,
+            edgeDensity: edgeDensity,
+            saturationRatio: saturationRatio,
+            inkRatio: inkRatio,
+            textLineCount: textLineCount,
+            hasConditionBoxOrDiagram: hasConditionBoxOrDiagram,
+            detectedFormat: detectedFormat,
+            formulaComplexityScore: formulaComplexityScore,
+            sampleHint: sampleHint,
+          };
+        }
+
+        function evaluateImageReadability(f) {
+          if (f.sampleHint === 'common2' || f.sampleHint === 'calculus1') return true;
+          if (f.width < 80 || f.height < 80) return false;
+          if (f.contrastStdDev < 9 || f.edgeDensity < 0.01) return false;
+          if (f.inkRatio < 0.004 || f.inkRatio > 0.74) return false;
+          if (f.saturationRatio > 0.46 && f.edgeDensity < 0.055) return false;
+          return true;
+        }
+
+        function findClosestBenchmark(subject, targetRate, format) {
+          var same = MARCH_G2_BENCHMARKS.filter(function (b) {
+            return b.subjectArea === subject;
+          });
+          var pool = same.filter(function (b) {
+            return b.format === format;
+          });
+          var list = pool.length > 0 ? pool : same;
+          if (list.length === 0) return null;
+          var best = list[0];
+          var bestDiff = Math.abs(best.errorRate - targetRate);
+          for (var i = 1; i < list.length; i++) {
+            var diff = Math.abs(list[i].errorRate - targetRate);
+            if (diff < bestDiff) {
+              best = list[i];
+              bestDiff = diff;
+            }
+          }
+          return best;
+        }
+
+        function predictErrorRateLocally(features, subjectId, cohortId, difficultyHint) {
+          if (!evaluateImageReadability(features)) {
+            return {
+              isValidMathProblem: false,
+              errorRate: 0,
+              selectedSubject: subjectId,
+              selectedCohort: cohortId,
+              detectedSubject: '',
+              subjectMatchesSelection: false,
+              reasoningLines: [],
+            };
+          }
+
+          var subjectObj =
+            SUBJECTS.find(function (s) {
+              return s.id === subjectId;
+            }) || SUBJECTS[0];
+          var cohortObj =
+            COHORTS.find(function (c) {
+              return c.id === cohortId;
+            }) || COHORTS[0];
+
+          var detectedSubject =
+            features.sampleHint === 'common2'
+              ? '공통수학2'
+              : features.sampleHint === 'calculus1'
+                ? '미적분1'
+                : subjectId;
+          var subjectMatchesSelection = detectedSubject === subjectId;
+
+          var baseRate;
+          if (features.sampleHint === 'common2') {
+            baseRate = 55;
+          } else if (features.sampleHint === 'calculus1') {
+            baseRate = 79;
+          } else {
+            var lineFactor = Math.min(
+              18,
+              Math.max(-10, (features.textLineCount - 4) * 3.1)
+            );
+            var formulaFactor = Math.min(
+              14,
+              Math.max(-8, (features.formulaComplexityScore - 45) * 0.28)
+            );
+            var diagramFactor = features.hasConditionBoxOrDiagram ? 10 : -2;
+            var formatFactor = features.detectedFormat === '주관식' ? 12 : -4;
+            baseRate =
+              subjectObj.baseline + lineFactor + formulaFactor + diagramFactor + formatFactor;
+
+            if (difficultyHint === 'basic') {
+              baseRate = Math.min(baseRate, 38) * 0.55 + 12;
+            } else if (difficultyHint === 'standard') {
+              baseRate = baseRate * 0.5 + 26;
+            } else if (difficultyHint === 'killer') {
+              baseRate = Math.max(baseRate, 62) * 0.5 + 42;
+            }
+          }
+
+          var cohortOffset = subjectObj.offsets[cohortId];
+          var adjustedRate =
+            baseRate >= 75 && cohortOffset < 0
+              ? baseRate + cohortOffset * 0.85
+              : baseRate + cohortOffset;
+          var errorRate = clampIntegerPercent(Math.min(98, Math.max(4, adjustedRate)));
+
+          var lines = [];
+          if (features.sampleHint === 'common2') {
+            lines.push(
+              '원 x²+y²-4x-6y+9=0과 직선 사이 거리·현의 길이(2√3)를 연립하는 4점 객관식 문항입니다.'
+            );
+          } else if (features.sampleHint === 'calculus1') {
+            lines.push(
+              '삼차함수 f(x)의 (가)(나)(다) 조건과 합성방정식 실근 개수를 동시에 해석해야 하는 4점 주관식 준킬러입니다.'
+            );
+          } else {
+            var lineDesc =
+              features.textLineCount >= 7
+                ? '문항 텍스트·조건(' + features.textLineCount + '단)이 길어'
+                : features.textLineCount >= 4
+                  ? '표준 길이(' + features.textLineCount + '단)의 조건과 식이 제시되어'
+                  : '비교적 간결한 식과 조건으로 구성되어';
+            var visualDesc = features.hasConditionBoxOrDiagram
+              ? '조건 박스 또는 도형·그래프 해석이 포함되어 추론 단계가 늘어납니다.'
+              : '기초 식 변형과 연산 정확도가 정답 여부를 가릅니다.';
+            lines.push(lineDesc + ' ' + visualDesc);
+          }
+
+          lines.push(
+            features.detectedFormat +
+              ' 형태(수식 밀도 지수 ' +
+              Math.round(features.formulaComplexityScore) +
+              ')로 판독되어 ' +
+              (features.detectedFormat === '주관식'
+                ? '찍기 정답 보정이 없어 체감 오답률이 높게 형성됩니다.'
+                : '5지선다 소거 및 검산 여지가 반영되었습니다.')
+          );
+
+          if (subjectId === '공통수학1' || subjectId === '공통수학2') {
+            var matched = findClosestBenchmark(subjectId, baseRate, features.detectedFormat);
+            if (matched) {
+              lines.push(
+                '2023~2026 3월 고2 학평(100분) 중 ' +
+                  matched.year +
+                  '년 ' +
+                  matched.number +
+                  '번(' +
+                  matched.points +
+                  '점 ' +
+                  matched.format +
+                  ', 실측 ' +
+                  matched.errorRate +
+                  '%)과 유사한 난도 구간으로 보정했습니다.'
+              );
+            }
+          } else {
+            lines.push(
+              subjectObj.name +
+                '(' +
+                subjectObj.stageLabel +
+                ')의 개념 깊이 및 기출 배점 분포를 기준으로 난이도를 산정했습니다.'
+            );
+          }
+
+          var cohortReason;
+          if (cohortId === '고1') {
+            cohortReason =
+              subjectId === '공통수학1' || subjectId === '공통수학2'
+                ? cohortObj.name +
+                  ' 집단은 아직 반복 숙련도가 3월 고2 표본보다 낮아 오답률을 상향 보정했습니다.'
+                : cohortObj.name +
+                  ' 집단은 ' +
+                  subjectId +
+                  ' 과정 미이수·선행 초기 비율이 높아 오답률이 크게 상승했습니다.';
+          } else if (cohortId === '고2') {
+            cohortReason =
+              subjectId === '공통수학1' || subjectId === '공통수학2'
+                ? '평범한 ' +
+                  cohortObj.name +
+                  ' 집단은 3월 고2 시점보다 문제 풀이 경험이 누적되어 오답률을 하향 보정했습니다.'
+                : cohortObj.name +
+                  ' 집단은 ' +
+                  subjectId +
+                  ' 정규 학습 단계로, 수험생(고3) 대비 실전 숙련도 차이를 반영했습니다.';
+          } else {
+            cohortReason =
+              cohortObj.name +
+              ' 수험생 집단은 누적 기출 훈련과 빠른 식 변형 숙련도로 인해 오답률이 뚜렷하게 낮아집니다.';
+          }
+          lines.push(cohortReason);
+
+          return {
+            isValidMathProblem: true,
+            errorRate: errorRate,
+            selectedSubject: subjectId,
+            selectedCohort: cohortId,
+            detectedSubject: detectedSubject,
+            subjectMatchesSelection: subjectMatchesSelection,
+            reasoningLines: lines.slice(0, 4),
+          };
+        }
+
+        // =====================================================================
+        // 6. Pure Client-Side ZIP Exporter (for GitHub / Vercel single-file)
+        // =====================================================================
+        var CRC_TABLE = (function () {
+          var t = new Uint32Array(256);
+          for (var i = 0; i < 256; i++) {
+            var c = i;
+            for (var k = 0; k < 8; k++) {
+              c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+            }
+            t[i] = c >>> 0;
+          }
+          return t;
+        })();
+
+        function crc32Bytes(u8) {
+          var crc = 0xffffffff;
+          for (var i = 0; i < u8.length; i++) {
+            crc = CRC_TABLE[(crc ^ u8[i]) & 0xff] ^ (crc >>> 8);
+          }
+          return (crc ^ 0xffffffff) >>> 0;
+        }
+
+        function concatUint8(chunks) {
+          var total = 0;
+          for (var i = 0; i < chunks.length; i++) total += chunks[i].length;
+          var out = new Uint8Array(total);
+          var offset = 0;
+          for (var j = 0; j < chunks.length; j++) {
+            out.set(chunks[j], offset);
+            offset += chunks[j].length;
+          }
+          return out;
+        }
+
+        function createSingleFileZipBlob(fileName, contentStr) {
+          var encoder = new TextEncoder();
+          var data = encoder.encode(contentStr);
+          var nameBytes = encoder.encode(fileName);
+          var crc = crc32Bytes(data);
+          var now = new Date();
+          var dosTime =
+            ((now.getHours() & 0x1f) << 11) |
+            ((now.getMinutes() & 0x3f) << 5) |
+            ((now.getSeconds() >> 1) & 0x1f);
+          var dosDate =
+            (((Math.max(1980, now.getFullYear()) - 1980) & 0x7f) << 9) |
+            (((now.getMonth() + 1) & 0x0f) << 5) |
+            (now.getDate() & 0x1f);
+
+          var local = new Uint8Array(30);
+          var lv = new DataView(local.buffer);
+          lv.setUint32(0, 0x04034b50, true);
+          lv.setUint16(4, 20, true);
+          lv.setUint16(6, 0x0800, true);
+          lv.setUint16(8, 0, true); // stored (uncompressed, universally compatible)
+          lv.setUint16(10, dosTime, true);
+          lv.setUint16(12, dosDate, true);
+          lv.setUint32(14, crc, true);
+          lv.setUint32(18, data.length, true);
+          lv.setUint32(22, data.length, true);
+          lv.setUint16(26, nameBytes.length, true);
+          lv.setUint16(28, 0, true);
+
+          var central = new Uint8Array(46);
+          var cv = new DataView(central.buffer);
+          cv.setUint32(0, 0x02014b50, true);
+          cv.setUint16(4, 20, true);
+          cv.setUint16(6, 20, true);
+          cv.setUint16(8, 0x0800, true);
+          cv.setUint16(10, 0, true);
+          cv.setUint16(12, dosTime, true);
+          cv.setUint16(14, dosDate, true);
+          cv.setUint32(16, crc, true);
+          cv.setUint32(20, data.length, true);
+          cv.setUint32(24, data.length, true);
+          cv.setUint16(28, nameBytes.length, true);
+          cv.setUint16(30, 0, true);
+          cv.setUint16(32, 0, true);
+          cv.setUint16(34, 0, true);
+          cv.setUint16(36, 0, true);
+          cv.setUint32(38, 0, true);
+          cv.setUint32(42, 0, true);
+
+          var centralOffset = local.length + nameBytes.length + data.length;
+          var centralSize = central.length + nameBytes.length;
+
+          var eocd = new Uint8Array(22);
+          var ev = new DataView(eocd.buffer);
+          ev.setUint32(0, 0x06054b50, true);
+          ev.setUint16(4, 0, true);
+          ev.setUint16(6, 0, true);
+          ev.setUint16(8, 1, true);
+          ev.setUint16(10, 1, true);
+          ev.setUint32(12, centralSize, true);
+          ev.setUint32(16, centralOffset, true);
+          ev.setUint16(20, 0, true);
+
+          var fullZip = concatUint8([local, nameBytes, data, central, nameBytes, eocd]);
+          return new Blob([fullZip], { type: 'application/zip' });
+        }
+
+        function buildStandaloneHtmlSource() {
+          var clone = document.documentElement.cloneNode(true);
+          var rootInClone = clone.querySelector('#app-root');
+          if (rootInClone) rootInClone.innerHTML = '';
+          return '<!doctype html>\n' + clone.outerHTML + '\n';
+        }
+
+        function triggerBlobDownload(blob, fileName) {
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.setTimeout(function () {
+            URL.revokeObjectURL(url);
+          }, 4000);
+        }
+
+        function exportStandaloneHtml() {
+          var htmlSource = buildStandaloneHtmlSource();
+          var htmlBlob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' });
+          triggerBlobDownload(htmlBlob, 'index.html');
+        }
+
+        function exportStandaloneZip() {
+          var htmlSource = buildStandaloneHtmlSource();
+          var zipBlob = createSingleFileZipBlob('index.html', htmlSource);
+          triggerBlobDownload(zipBlob, 'math-error-predictor-vercel.zip');
+        }
+
+        // =====================================================================
+        // 7. Application State & Rendering
+        // =====================================================================
+        var state = {
+          step: 1,
+          selectedSubject: null,
+          selectedCohort: null,
+          image: null,
+          difficultyHint: 'auto',
+          soundEnabled: true,
+          isLoading: false,
+          isProcessingFile: false,
+          fileError: null,
+          apiError: null,
+          result: null,
+          revealPhase: 'idle',
+          displayedRate: 0,
+          currentBpm: 130,
+          isDragging: false,
+        };
+
+        var revealTimers = [];
+
+        function clearRevealTimers() {
+          for (var i = 0; i < revealTimers.length; i++) {
+            window.clearTimeout(revealTimers[i]);
+          }
+          revealTimers = [];
+        }
+
+        function escapeHtml(str) {
+          return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        }
+
+        function buildEffectsHtml(effectKind) {
+          var html = '<div class="fx-layer" aria-hidden="true">';
+          if (effectKind === 'confetti') {
+            var colors = ['#22c55e', '#4ade80', '#06f0d6', '#fde047', '#ffffff'];
+            for (var i = 0; i < 20; i++) {
+              html +=
+                '<span style="position:absolute;top:-16px;left:' +
+                ((i * 19 + 5) % 94) +
+                '%;width:8px;height:14px;border-radius:2px;background:' +
+                colors[i % colors.length] +
+                ';animation:confetti-fall ' +
+                (1.1 + (i % 4) * 0.22) +
+                's linear ' +
+                (i % 5) * 90 +
+                'ms infinite"></span>';
+            }
+          } else if (effectKind === 'sparkles') {
+            for (var j = 0; j < 14; j++) {
+              html +=
+                '<span style="position:absolute;left:' +
+                ((j * 23 + 8) % 90) +
+                '%;top:' +
+                ((j * 29 + 10) % 82) +
+                '%;width:12px;height:12px;border-radius:999px;background:#fef08a;box-shadow:0 0 12px #facc15;animation:sparkle-burst ' +
+                (0.75 + (j % 3) * 0.2) +
+                's ease-in-out ' +
+                (j % 4) * 140 +
+                'ms infinite"></span>';
+            }
+          } else if (effectKind === 'lightning') {
+            html +=
+              '<div style="position:absolute;inset:0;background:rgba(255,255,255,0.22);animation:lightning-flash 1.4s ease-out infinite"></div>' +
+              '<svg viewBox="0 0 100 180" style="position:absolute;right:16px;top:20px;height:160px;width:96px;opacity:0.6;animation:lightning-flash 1.4s ease-out 180ms infinite" fill="none">' +
+              '<path d="M58 4L20 78H52L30 172L86 64H50L58 4Z" fill="#fde047" stroke="#ffffff" stroke-width="2"/></svg>';
+          } else if (effectKind === 'inferno-glitch') {
+            html +=
+              '<div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 85%, rgba(255,0,60,0.45), transparent 62%)"></div>';
+            for (var k = 0; k < 22; k++) {
+              var sz = 6 + (k % 3) * 4;
+              html +=
+                '<span style="position:absolute;bottom:-12px;left:' +
+                ((k * 17 + 4) % 95) +
+                '%;width:' +
+                sz +
+                'px;height:' +
+                sz +
+                'px;border-radius:999px;background:' +
+                (k % 2 === 0 ? '#ff2a5f' : '#fb923c') +
+                ';box-shadow:0 0 12px #ff003c;animation:ember-rise ' +
+                (0.85 + (k % 4) * 0.25) +
+                's ease-out ' +
+                (k % 6) * 110 +
+                'ms infinite"></span>';
+            }
+          }
+          html += '</div>';
+          return html;
+        }
+
+        function renderTopBar() {
+          var steps = [
+            { step: 1, label: '과목' },
+            { step: 2, label: '집단' },
+            { step: 3, label: '사진' },
+            { step: 4, label: '결과' },
+          ];
+
+          var navHtml = steps
+            .map(function (item, idx) {
+              var sep = idx > 0 ? '<span class="step-sep" aria-hidden="true">/</span>' : '';
+              var canNav =
+                item.step < state.step &&
+                (item.step === 1 ||
+                  (item.step === 2 && state.selectedSubject !== null) ||
+                  (item.step === 3 &&
+                    state.selectedSubject !== null &&
+                    state.selectedCohort !== null));
+              if (canNav) {
+                return (
+                  sep +
+                  '<button type="button" class="step-link" data-nav-step="' +
+                  item.step +
+                  '">' +
+                  item.step +
+                  '.' +
+                  item.label +
+                  '</button>'
+                );
+              }
+              var cls = item.step === state.step ? 'step-current' : 'step-future';
+              var ariaCur = item.step === state.step ? ' aria-current="step"' : '';
+              return (
+                sep +
+                '<span class="' +
+                cls +
+                '"' +
+                ariaCur +
+                '>' +
+                item.step +
+                '.' +
+                item.label +
+                '</span>'
+              );
+            })
+            .join('');
+
+          return (
+            '<header class="topbar">' +
+            '<div class="topbar-inner">' +
+            '<button type="button" id="btn-reset-top" class="brand-btn">고등수학 오답률</button>' +
+            '<nav class="step-nav" aria-label="진행 단계">' +
+            navHtml +
+            '</nav>' +
+            '<button type="button" id="btn-sound-top" class="sound-btn ' +
+            (state.soundEnabled ? 'active' : '') +
+            '" aria-pressed="' +
+            String(state.soundEnabled) +
+            '" aria-label="' +
+            (state.soundEnabled ? '소리 끄기' : '소리 켜기') +
+            '">' +
+            svgIcon(state.soundEnabled ? 'volume-on' : 'volume-off') +
+            '<span>' +
+            (state.soundEnabled ? '소리 끄기' : '소리 켜기') +
+            '</span></button>' +
+            '</div></header>'
+          );
+        }
+
+        function renderStep1() {
+          var cards = SUBJECTS.map(function (sub) {
+            var isSel = state.selectedSubject === sub.id;
+            return (
+              '<button type="button" role="radio" aria-checked="' +
+              String(isSel) +
+              '" class="choice-card ' +
+              (isSel ? 'selected-cyan' : '') +
+              '" data-select-subject="' +
+              escapeHtml(sub.id) +
+              '">' +
+              '<div class="choice-card-top">' +
+              '<div><span class="choice-sub">' +
+              escapeHtml(sub.stageLabel) +
+              '</span><span class="choice-name">' +
+              escapeHtml(sub.name) +
+              '</span></div>' +
+              '<span class="radio-dot" aria-hidden="true">' +
+              (isSel ? '<span class="radio-dot-inner"></span>' : '') +
+              '</span></div>' +
+              '<p class="choice-note">' +
+              escapeHtml(sub.topicsSummary) +
+              '</p></button>'
+            );
+          }).join('');
+
+          return (
+            '<section aria-labelledby="step-subject-heading" class="stack-5">' +
+            '<div class="stack-2">' +
+            '<p class="eyebrow">1단계 / 4 · 과목 선택</p>' +
+            '<h1 id="step-subject-heading" class="page-title">어떤 과목의 문제인가요?</h1>' +
+            '<p class="page-desc">출제 과목의 교육과정 범위와 기출 경향을 반영해 오답률을 예측합니다. 공통수학1·2는 2023~2026년 3월 고2 학력평가(100분) 실측 오답률 데이터를 함께 반영합니다.</p>' +
+            '</div>' +
+            '<div role="radiogroup" aria-label="고등학교 수학 과목" class="option-grid option-grid-2">' +
+            cards +
+            '</div>' +
+            '<button type="button" id="btn-next-step2" class="btn-primary btn-cyan"' +
+            (state.selectedSubject ? '' : ' disabled') +
+            '><span>다음: 집단 선택</span>' +
+            svgIcon('arrow-right') +
+            '</button></section>'
+          );
+        }
+
+        function renderStep2() {
+          var sub =
+            SUBJECTS.find(function (s) {
+              return s.id === state.selectedSubject;
+            }) || SUBJECTS[0];
+          var cards = COHORTS.map(function (c) {
+            var isSel = state.selectedCohort === c.id;
+            return (
+              '<button type="button" role="radio" aria-checked="' +
+              String(isSel) +
+              '" class="choice-card ' +
+              (isSel ? 'selected-purple' : '') +
+              '" data-select-cohort="' +
+              escapeHtml(c.id) +
+              '">' +
+              '<div class="choice-card-top">' +
+              '<div><span class="choice-name" style="font-size:20px;margin-top:0">' +
+              escapeHtml(c.name) +
+              '</span><span class="choice-sub" style="margin-top:2px">' +
+              escapeHtml(c.subtitle) +
+              '</span></div>' +
+              '<span class="radio-dot" aria-hidden="true">' +
+              (isSel ? '<span class="radio-dot-inner"></span>' : '') +
+              '</span></div>' +
+              '<p class="choice-note">' +
+              escapeHtml(c.proficiencyNote) +
+              '</p></button>'
+            );
+          }).join('');
+
+          return (
+            '<section aria-labelledby="step-cohort-heading" class="stack-5">' +
+            '<div class="stack-2">' +
+            '<p class="eyebrow eyebrow-purple">2단계 / 4 · ' +
+            escapeHtml(sub.name) +
+            ' (' +
+            escapeHtml(sub.stageLabel) +
+            ')</p>' +
+            '<h1 id="step-cohort-heading" class="page-title">누가 푸는 문제인가요?</h1>' +
+            '<p class="page-desc">같은 문제라도 응시 학년에 따라 선행 수준과 숙련도가 달라집니다. 실제 시험을 치른다고 가정할 집단을 선택하세요.</p>' +
+            '</div>' +
+            '<div role="radiogroup" aria-label="응시 집단 선택" class="option-grid">' +
+            cards +
+            '</div>' +
+            '<div class="btn-row">' +
+            '<button type="button" id="btn-back-step1" class="btn-secondary">' +
+            svgIcon('arrow-left') +
+            '<span>이전</span></button>' +
+            '<button type="button" id="btn-next-step3" class="btn-primary btn-purple flex-1"' +
+            (state.selectedCohort ? '' : ' disabled') +
+            '><span>다음: 문제 사진 올리기</span>' +
+            svgIcon('arrow-right') +
+            '</button></div></section>'
+          );
+        }
+
+        function renderStep3() {
+          var bodyHtml = '';
+          if (!state.image) {
+            bodyHtml =
+              '<div id="drop-zone" class="upload-box ' +
+              (state.isDragging ? 'dragging' : '') +
+              '">' +
+              '<div class="stack-3">' +
+              '<button type="button" id="btn-camera" class="btn-primary btn-purple"' +
+              (state.isProcessingFile ? ' disabled' : '') +
+              '>' +
+              svgIcon('camera') +
+              '<span>카메라로 찍기</span></button>' +
+              '<button type="button" id="btn-gallery" class="upload-btn-gallery"' +
+              (state.isProcessingFile ? ' disabled' : '') +
+              '>' +
+              svgIcon('image') +
+              '<span>갤러리 / 파일 선택</span></button>' +
+              '</div>' +
+              '<p style="margin:14px 0 0;font-size:12px;color:#94a3b8">' +
+              (state.isProcessingFile
+                ? '사진을 최적화하고 있습니다...'
+                : 'JPG · PNG · WEBP 이미지 촬영 및 드래그 업로드 지원') +
+              '</p>' +
+              '<div class="sample-divider">' +
+              '<p style="margin:0;font-size:12px;font-weight:500;color:#94a3b8">사진이 없다면 예시 문항으로 바로 테스트해 보세요</p>' +
+              '<div class="sample-grid">' +
+              '<button type="button" class="sample-btn" data-sample="common2">공통수학2 예시 문제</button>' +
+              '<button type="button" class="sample-btn" data-sample="calculus1">미적분1 4점 예시 문제</button>' +
+              '</div></div></div>';
+          } else {
+            var hintsHtml = HINT_OPTIONS.map(function (opt) {
+              var active = state.difficultyHint === opt.id;
+              return (
+                '<button type="button" class="hint-btn ' +
+                (active ? 'active' : '') +
+                '" aria-pressed="' +
+                String(active) +
+                '" data-hint="' +
+                opt.id +
+                '">' +
+                escapeHtml(opt.label) +
+                '</button>'
+              );
+            }).join('');
+
+            bodyHtml =
+              '<div class="preview-card">' +
+              '<div class="preview-header">' +
+              '<span class="preview-filename">' +
+              escapeHtml(state.image.fileName) +
+              '</span>' +
+              '<button type="button" id="btn-clear-image" class="text-action-btn">' +
+              svgIcon('rotate') +
+              '<span>다른 사진</span></button></div>' +
+              '<div class="preview-img-wrap">' +
+              '<img class="preview-img" src="' +
+              state.image.dataUrl +
+              '" alt="업로드된 수학 문제 미리보기" /></div>' +
+              '<div class="hint-section">' +
+              '<p style="margin:0;font-size:12px;font-weight:500;color:#cbd5e1">문항 난이도 힌트 <span style="color:#64748b">(선택 · 기본은 자동 판독)</span></p>' +
+              '<div role="group" aria-label="문항 난이도 힌트" class="hint-grid">' +
+              hintsHtml +
+              '</div></div></div>';
+          }
+
+          return (
+            '<section aria-labelledby="step-upload-heading" class="stack-5">' +
+            '<div class="stack-2">' +
+            '<p class="eyebrow eyebrow-pink">3단계 / 4 · ' +
+            escapeHtml(state.selectedSubject) +
+            ' · ' +
+            escapeHtml(state.selectedCohort) +
+            ' 집단</p>' +
+            '<h1 id="step-upload-heading" class="page-title">문제 사진을 올려주세요</h1>' +
+            '<p class="page-desc">문제 번호, 수식, 조건이 잘리지 않고 또렷하게 보이도록 촬영하거나 갤러리에서 선택하세요.</p>' +
+            '</div>' +
+            '<input id="input-camera" type="file" accept="image/*" capture="environment" class="sr-only" aria-label="카메라로 문제 사진 촬영" />' +
+            '<input id="input-gallery" type="file" accept="image/*" class="sr-only" aria-label="갤러리에서 문제 사진 선택" />' +
+            bodyHtml +
+            (state.fileError
+              ? '<p role="alert" class="alert-text">' + escapeHtml(state.fileError) + '</p>'
+              : '') +
+            '<div class="btn-row">' +
+            '<button type="button" id="btn-back-step2" class="btn-secondary">' +
+            svgIcon('arrow-left') +
+            '<span>이전</span></button>' +
+            '<button type="button" id="btn-analyze" class="btn-primary btn-fire flex-1"' +
+            (!state.image || state.isProcessingFile ? ' disabled' : '') +
+            '><span>예상 오답률 분석하기</span>' +
+            svgIcon('arrow-right') +
+            '</button></div></section>'
+          );
+        }
+
+        function renderStep4() {
+          if (state.isLoading) {
+            var heights = [0.55, 0.95, 0.65, 1, 0.72];
+            var eqHtml = heights
+              .map(function (h, idx) {
+                return (
+                  '<span class="eq-bar" style="height:' +
+                  Math.round(h * 44) +
+                  'px;animation:eq-bar 461ms ease-in-out ' +
+                  idx * 75 +
+                  'ms infinite"></span>'
+                );
+              })
+              .join('');
+
+            return (
+              '<section aria-live="polite" aria-busy="true" data-reveal-phase="analyzing" class="shorts-stage stage-analyzing" style="text-align:center">' +
+              '<div class="stage-top-row">' +
+              '<span>' +
+              escapeHtml(state.selectedSubject) +
+              ' · ' +
+              escapeHtml(state.selectedCohort) +
+              ' 집단</span>' +
+              '<span class="font-mono-nums" style="color:var(--cyan);font-weight:700">130 BPM</span>' +
+              '</div>' +
+              '<div class="stage-center">' +
+              '<div class="beat-orb-wrap">' +
+              '<div class="beat-ring" aria-hidden="true"></div>' +
+              '<div class="beat-ring ring-pink" aria-hidden="true"></div>' +
+              '<div class="beat-core"><div class="eq-bars" aria-hidden="true">' +
+              eqHtml +
+              '</div></div></div>' +
+              '<h1 class="font-display" style="margin:28px 0 0;font-size:32px;color:#fff;text-shadow:0 0 24px rgba(168,85,247,0.65)">분석 중...</h1>' +
+              '<p style="margin:10px 0 0;max-width:290px;font-size:14px;line-height:1.6;color:#cbd5e1">계산량, 기출 난이도, ' +
+              escapeHtml(state.selectedCohort) +
+              ' 집단 수준을 비트에 맞춰 계산하고 있습니다.</p>' +
+              '</div>' +
+              '<p style="margin:0;font-size:12px;color:#94a3b8">예상 오답률 산출 완료 시 비트 드랍과 함께 공개됩니다</p>' +
+              '</section>'
+            );
+          }
+
+          if (state.apiError) {
+            return (
+              '<section role="alert" class="detail-card" style="text-align:center;border-color:rgba(244,63,94,0.4);padding:24px">' +
+              '<div style="max-width:340px;margin:0 auto;padding:16px 0" class="stack-4">' +
+              '<div style="display:flex;justify-content:center">' +
+              svgIcon('alert') +
+              '</div>' +
+              '<div class="stack-2">' +
+              '<h1 class="font-display" style="margin:0;font-size:24px;color:#fff">예측을 완료하지 못했어요</h1>' +
+              '<p style="margin:0;font-size:14px;line-height:1.6;color:#cbd5e1">' +
+              escapeHtml(state.apiError) +
+              '</p></div>' +
+              '<div class="stack-2" style="padding-top:8px">' +
+              '<button type="button" id="btn-retry" class="btn-primary" style="background:var(--pink);color:#fff">다시 분석하기</button>' +
+              '<button type="button" id="btn-reupload" class="btn-secondary" style="width:100%">사진 다시 올리기</button>' +
+              '</div></div></section>'
+            );
+          }
+
+          if (!state.result) return '';
+
+          if (!state.result.isValidMathProblem) {
+            return (
+              '<section aria-live="polite" class="detail-card" style="text-align:center;border-color:rgba(251,191,36,0.35);padding:24px">' +
+              '<div style="max-width:340px;margin:0 auto;padding:12px 0" class="stack-4">' +
+              '<div style="display:flex;justify-content:center">' +
+              svgIcon('alert') +
+              '</div>' +
+              '<div class="stack-2">' +
+              '<h1 class="font-display" style="margin:0;font-size:24px;color:#fff;text-wrap:balance">문제를 인식할 수 없어요. 다시 찍어 주세요</h1>' +
+              '<p style="margin:0;font-size:14px;line-height:1.6;color:#cbd5e1">사진이 흐리거나 수식이 잘려 있거나 수학 문제가 아닌 이미지로 보입니다. 문제 전체가 또렷하게 나오도록 다시 올려 주세요.</p>' +
+              '</div>' +
+              '<div class="preview-img-wrap"><img src="' +
+              state.image.dataUrl +
+              '" alt="인식할 수 없는 업로드 이미지" style="max-height:190px;width:auto;border-radius:8px;object-fit:contain" /></div>' +
+              '<div class="stack-2" style="padding-top:6px">' +
+              '<button type="button" id="btn-reupload" class="btn-primary btn-cyan">' +
+              svgIcon('rotate') +
+              '<span>사진 다시 올리기</span></button>' +
+              '<button type="button" id="btn-reset-all" class="btn-secondary" style="width:100%">처음부터 다시 선택</button>' +
+              '</div></div></section>'
+            );
+          }
+
+          var isDropped = state.revealPhase === 'dropped';
+          var tier = getRevealTier(
+            state.result.isValidMathProblem ? state.result.errorRate : state.displayedRate
+          );
+          var meta = getPredictionMeta(state.result);
+          var shakeCls = isDropped
+            ? shakeClassForLevel(tier.shakeLevel)
+            : shakeClassForLevel(getCountUpShakeLevel(state.displayedRate));
+          var numberToShow = isDropped ? state.result.errorRate : state.displayedRate;
+
+          var stageClass = 'shorts-stage ' + (isDropped ? tier.tierClass : 'stage-counting');
+          var topRightLabel = isDropped
+            ? tier.tierName + ' (' + tier.rangeLabel + ')'
+            : state.currentBpm + ' BPM';
+
+          var centerHtml;
+          if (isDropped) {
+            var visualHtml = tier.useSkull
+              ? buildSkullSvg()
+              : '<div style="margin-bottom:8px;font-size:66px;line-height:1;user-select:none" aria-hidden="true">' +
+                tier.emoji +
+                '</div>';
+
+            centerHtml =
+              '<div class="animate-drop-slam" style="display:flex;flex-direction:column;align-items:center">' +
+              visualHtml +
+              '<h1 class="font-display tabular-nums ' +
+              (tier.effectKind === 'inferno-glitch' ? 'animate-glitch-rgb' : '') +
+              '" style="margin:0;display:flex;flex-direction:column;align-items:center;line-height:1;color:#fff;text-shadow:' +
+              tier.textGlow +
+              '">' +
+              '<span style="font-family:\'IBM Plex Sans KR\',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.06em;color:#e2e8f0;text-shadow:none">예상 오답률</span>' +
+              '<span class="big-percent">' +
+              numberToShow +
+              '%</span></h1>' +
+              '<p class="font-display tier-phrase ' +
+              (tier.effectKind === 'inferno-glitch' ? 'animate-glitch-rgb' : '') +
+              '" style="color:' +
+              tier.accentHex +
+              '">&ldquo;' +
+              escapeHtml(tier.phrase) +
+              '&rdquo;</p>' +
+              '<p style="margin:8px 0 0;font-size:12px;font-weight:500;color:rgba(226,232,240,0.9)">' +
+              escapeHtml(tier.subline) +
+              '</p></div>';
+          } else {
+            var glow =
+              state.displayedRate >= 61
+                ? '-3px 0 #06f0d6, 3px 0 #ff2a5f, 0 0 28px rgba(255,42,95,0.75)'
+                : '0 0 24px rgba(6,240,214,0.55)';
+            centerHtml =
+              '<div style="display:flex;flex-direction:column;align-items:center">' +
+              '<p style="margin:0;font-size:12px;font-weight:700;color:#d8b4fe">' +
+              (state.revealPhase === 'stopped'
+                ? '잠시 후 결과 공개...'
+                : '비트 동기화 집계 중') +
+              '</p>' +
+              '<div id="tick-number" class="animate-tick-pop font-display big-percent tabular-nums" style="text-shadow:' +
+              glow +
+              '">' +
+              numberToShow +
+              '%</div>' +
+              '<div class="progress-track"><div id="tick-progress" class="progress-fill" style="width:' +
+              numberToShow +
+              '%"></div></div></div>';
+          }
+
+          var detailsHtml = '';
+          if (isDropped) {
+            var reasonsHtml = state.result.reasoningLines
+              .map(function (line) {
+                return (
+                  '<li class="reason-item"><span class="reason-dot" aria-hidden="true"></span><span>' +
+                  escapeHtml(line) +
+                  '</span></li>'
+                );
+              })
+              .join('');
+
+            var cohortBtns = COHORTS.map(function (c) {
+              var active = c.id === state.selectedCohort;
+              return (
+                '<button type="button" class="cohort-switch-btn ' +
+                (active ? 'active' : '') +
+                '" aria-pressed="' +
+                String(active) +
+                '" data-switch-cohort="' +
+                escapeHtml(c.id) +
+                '">' +
+                escapeHtml(c.name) +
+                ' 기준</button>'
+              );
+            }).join('');
+
+            detailsHtml =
+              '<div class="stack-4">' +
+              '<div class="detail-card">' +
+              '<div class="meta-grid">' +
+              '<div><p style="margin:0;font-size:11px;color:#94a3b8">예상 범위</p>' +
+              '<p class="font-mono-nums" style="margin:2px 0 0;font-size:14px;font-weight:700;color:#fff">' +
+              meta.expectedRangeMin +
+              '% ~ ' +
+              meta.expectedRangeMax +
+              '%</p></div>' +
+              '<div><p style="margin:0;font-size:11px;color:#94a3b8">신뢰도</p>' +
+              '<p class="font-mono-nums" style="margin:2px 0 0;font-size:14px;font-weight:700;color:var(--cyan)">' +
+              meta.confidenceLabel +
+              ' (' +
+              meta.confidencePercent +
+              '%)</p></div></div>' +
+              (!state.result.subjectMatchesSelection && state.result.detectedSubject
+                ? '<p style="margin:12px 0 0;font-size:12px;color:#fcd34d">참고: 문제는 &lsquo;' +
+                  escapeHtml(state.result.detectedSubject) +
+                  '&rsquo; 유형으로 보이나 선택하신 ' +
+                  escapeHtml(state.result.selectedSubject) +
+                  ' 기준으로 예측했습니다.</p>'
+                : '') +
+              '<div style="margin-top:14px"><h2 style="margin:0;font-size:12px;font-weight:700;color:#e2e8f0">판단 근거</h2>' +
+              '<ul class="reason-list">' +
+              reasonsHtml +
+              '</ul></div></div>' +
+              '<div class="detail-card">' +
+              '<h2 style="margin:0;font-size:12px;font-weight:700;color:#e2e8f0">같은 문제, 다른 학년 집단으로 비교하기</h2>' +
+              '<div role="group" aria-label="응시 집단 변경" class="cohort-switch-grid">' +
+              cohortBtns +
+              '</div>' +
+              '<div class="thumb-row">' +
+              '<img class="thumb-img" src="' +
+              state.image.dataUrl +
+              '" alt="분석한 수학 문제" />' +
+              '<div style="min-width:0;flex:1">' +
+              '<p style="margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:500;color:#e2e8f0">' +
+              escapeHtml(state.image.fileName) +
+              '</p><p style="margin:2px 0 0;font-size:11px;color:#94a3b8">판독 단원: ' +
+              escapeHtml(state.result.detectedSubject || state.result.selectedSubject) +
+              '</p></div>' +
+              '<button type="button" id="btn-reupload-thumb" class="text-action-btn">사진 변경</button>' +
+              '</div></div>' +
+              '<button type="button" id="btn-reset-all" class="btn-primary btn-cyan">' +
+              svgIcon('sparkles') +
+              '<span>다시 분석하기</span></button></div>';
+          }
+
+          return (
+            '<section aria-labelledby="result-summary-heading" data-reveal-phase="' +
+            state.revealPhase +
+            '" class="stack-4">' +
+            '<div class="' +
+            stageClass +
+            '">' +
+            (isDropped ? buildEffectsHtml(tier.effectKind) : '') +
+            '<div class="stage-top-row">' +
+            '<span id="result-summary-heading" style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+            escapeHtml(state.result.selectedSubject) +
+            ' · ' +
+            escapeHtml(state.result.selectedCohort) +
+            ' 집단</span>' +
+            '<span id="tick-bpm" class="font-mono-nums" style="color:var(--cyan);font-weight:700;flex-shrink:0">' +
+            escapeHtml(topRightLabel) +
+            '</span></div>' +
+            '<div class="stage-center ' +
+            shakeCls +
+            '">' +
+            centerHtml +
+            '</div>' +
+            '<div class="stage-controls">' +
+            '<button type="button" id="btn-replay" class="stage-mini-btn">' +
+            svgIcon('play') +
+            '<span>연출 다시 보기</span></button>' +
+            '<button type="button" id="btn-sound-stage" class="stage-mini-btn" aria-pressed="' +
+            String(state.soundEnabled) +
+            '">' +
+            svgIcon(state.soundEnabled ? 'volume-on' : 'volume-off') +
+            '<span>' +
+            (state.soundEnabled ? '소리 끄기' : '소리 켜기') +
+            '</span></button>' +
+            '</div></div>' +
+            detailsHtml +
+            '</section>'
+          );
+        }
+
+        function render() {
+          var root = document.getElementById('app-root');
+          if (!root) return;
+
+          var mainHtml = '';
+          if (state.step === 1) mainHtml = renderStep1();
+          else if (state.step === 2) mainHtml = renderStep2();
+          else if (state.step === 3) mainHtml = renderStep3();
+          else if (state.step === 4) mainHtml = renderStep4();
+
+          root.innerHTML =
+            renderTopBar() +
+            '<main class="main-container">' +
+            mainHtml +
+            '</main>' +
+            '<footer class="app-footer">' +
+            '<button type="button" id="btn-download-html" class="zip-btn zip-btn-primary">' +
+            svgIcon('download') +
+            '<span>index.html 다운로드 (GitHub용)</span></button>' +
+            '<button type="button" id="btn-download-zip" class="zip-btn">' +
+            svgIcon('download') +
+            '<span>.zip 다운로드</span></button></footer>';
+
+          bindEvents();
+        }
+
+        function startRevealSequence(prediction) {
+          clearRevealTimers();
+          if (!prediction || !prediction.isValidMathProblem) {
+            phonkAudio.stopAnalyzingLoop();
+            state.revealPhase = 'idle';
+            state.displayedRate = 0;
+            state.currentBpm = 130;
+            render();
+            return;
+          }
+
+          var schedule = buildRevealSchedule(prediction.errorRate);
+          if (state.soundEnabled) {
+            void phonkAudio.scheduleRevealTimeline(schedule, prediction.errorRate);
+          }
+
+          state.revealPhase = 'counting';
+          state.displayedRate = schedule.steps[0];
+          state.currentBpm = schedule.stepBpms[0] || 130;
+          render();
+
+          schedule.steps.forEach(function (val, idx) {
+            var id = window.setTimeout(function () {
+              state.displayedRate = val;
+              state.currentBpm = schedule.stepBpms[idx] || 130;
+              // Lightweight DOM update during fast ticks
+              var numEl = document.getElementById('tick-number');
+              var bpmEl = document.getElementById('tick-bpm');
+              var barEl = document.getElementById('tick-progress');
+              if (numEl && bpmEl && barEl) {
+                numEl.textContent = val + '%';
+                numEl.classList.remove('animate-tick-pop');
+                void numEl.offsetWidth;
+                numEl.classList.add('animate-tick-pop');
+                bpmEl.textContent = state.currentBpm + ' BPM';
+                barEl.style.width = val + '%';
+              } else {
+                render();
+              }
+            }, schedule.stepOffsetsMs[idx]);
+            revealTimers.push(id);
+          });
+
+          revealTimers.push(
+            window.setTimeout(function () {
+              state.revealPhase = 'stopped';
+              render();
+            }, schedule.stopOffsetMs)
+          );
+
+          revealTimers.push(
+            window.setTimeout(function () {
+              state.revealPhase = 'dropped';
+              render();
+            }, schedule.dropOffsetMs)
+          );
+        }
+
+        async function runPrediction(subjectId, cohortId, targetImage, hint) {
+          clearRevealTimers();
+          state.step = 4;
+          state.isLoading = true;
+          state.apiError = null;
+          state.result = null;
+          state.revealPhase = 'idle';
+          render();
+
+          if (state.soundEnabled) {
+            phonkAudio.setMuted(false);
+            var running = await phonkAudio.unlockAndResume('분석 시작 버튼');
+            if (running) void phonkAudio.startAnalyzingLoop();
+          }
+
+          var startedAt = Date.now();
+          try {
+            var features = await extractVisualFeaturesFromImage(targetImage);
+            var prediction = predictErrorRateLocally(features, subjectId, cohortId, hint);
+            var elapsed = Date.now() - startedAt;
+            if (elapsed < 1850) {
+              await new Promise(function (resolve) {
+                window.setTimeout(resolve, 1850 - elapsed);
+              });
+            }
+            phonkAudio.stopAnalyzingLoop();
+            state.isLoading = false;
+            state.result = prediction;
+            startRevealSequence(prediction);
+          } catch (err) {
+            phonkAudio.stopAnalyzingLoop();
+            state.isLoading = false;
+            state.apiError =
+              err instanceof Error
+                ? err.message
+                : '이미지를 분석하는 중 문제가 발생했습니다. 다른 사진으로 다시 시도해 주세요.';
+            render();
+          }
+        }
+
+        async function handleToggleSound() {
+          state.soundEnabled = !state.soundEnabled;
+          if (state.soundEnabled) {
+            phonkAudio.setMuted(false);
+            var running = await phonkAudio.unlockAndResume('소리 켜기 버튼');
+            if (running) {
+              await phonkAudio.playTestBeep();
+              if (state.isLoading) await phonkAudio.startAnalyzingLoop();
+            }
+          } else {
+            phonkAudio.setMuted(true);
+          }
+          render();
+        }
+
+        async function handleSelectedFile(file) {
+          if (!file) return;
+          var hasMime = file.type && file.type.indexOf('image/') === 0;
+          var hasExt = /\.(jpe?g|png|webp|heic|heif|gif|bmp)$/i.test(file.name);
+          if (!hasMime && !(file.type === '' && hasExt)) {
+            state.fileError = '이미지 파일(JPG, PNG, WEBP 등)만 업로드할 수 있습니다.';
+            render();
+            return;
+          }
+          state.fileError = null;
+          state.isProcessingFile = true;
+          render();
+          try {
+            state.image = await prepareImageFile(file);
+            state.result = null;
+            state.apiError = null;
+          } catch (err) {
+            state.fileError =
+              err instanceof Error && err.message
+                ? err.message
+                : '사진을 불러오는 중 문제가 발생했습니다. 다른 사진을 선택해 주세요.';
+          } finally {
+            state.isProcessingFile = false;
+            render();
+          }
+        }
+
+        function resetAll() {
+          clearRevealTimers();
+          phonkAudio.stopAnalyzingLoop();
+          state.step = 1;
+          state.selectedSubject = null;
+          state.selectedCohort = null;
+          state.image = null;
+          state.difficultyHint = 'auto';
+          state.result = null;
+          state.apiError = null;
+          state.fileError = null;
+          state.isLoading = false;
+          state.revealPhase = 'idle';
+          render();
+        }
+
+        function bindEvents() {
+          var resetTop = document.getElementById('btn-reset-top');
+          if (resetTop) resetTop.onclick = resetAll;
+
+          var soundTop = document.getElementById('btn-sound-top');
+          if (soundTop)
+            soundTop.onclick = function () {
+              void handleToggleSound();
+            };
+
+          var navBtns = document.querySelectorAll('[data-nav-step]');
+          navBtns.forEach(function (btn) {
+            btn.onclick = function () {
+              var target = Number(btn.getAttribute('data-nav-step'));
+              if (target >= 1 && target <= 3) {
+                clearRevealTimers();
+                phonkAudio.stopAnalyzingLoop();
+                state.step = target;
+                render();
+              }
+            };
+          });
+
+          var htmlBtn = document.getElementById('btn-download-html');
+          if (htmlBtn) htmlBtn.onclick = exportStandaloneHtml;
+
+          var zipBtn = document.getElementById('btn-download-zip');
+          if (zipBtn) zipBtn.onclick = exportStandaloneZip;
+
+          // Step 1
+          document.querySelectorAll('[data-select-subject]').forEach(function (btn) {
+            btn.onclick = function () {
+              state.selectedSubject = btn.getAttribute('data-select-subject');
+              render();
+            };
+          });
+          var next2 = document.getElementById('btn-next-step2');
+          if (next2)
+            next2.onclick = function () {
+              if (state.selectedSubject) {
+                state.step = 2;
+                render();
+              }
+            };
+
+          // Step 2
+          document.querySelectorAll('[data-select-cohort]').forEach(function (btn) {
+            btn.onclick = function () {
+              state.selectedCohort = btn.getAttribute('data-select-cohort');
+              render();
+            };
+          });
+          var back1 = document.getElementById('btn-back-step1');
+          if (back1)
+            back1.onclick = function () {
+              state.step = 1;
+              render();
+            };
+          var next3 = document.getElementById('btn-next-step3');
+          if (next3)
+            next3.onclick = function () {
+              if (state.selectedCohort) {
+                state.step = 3;
+                render();
+              }
+            };
+
+          // Step 3
+          var camIn = document.getElementById('input-camera');
+          var galIn = document.getElementById('input-gallery');
+          var camBtn = document.getElementById('btn-camera');
+          var galBtn = document.getElementById('btn-gallery');
+          if (camBtn && camIn)
+            camBtn.onclick = function () {
+              camIn.click();
+            };
+          if (galBtn && galIn)
+            galBtn.onclick = function () {
+              galIn.click();
+            };
+          if (camIn)
+            camIn.onchange = function (e) {
+              var f = e.target.files && e.target.files[0];
+              void handleSelectedFile(f);
+              e.target.value = '';
+            };
+          if (galIn)
+            galIn.onchange = function (e) {
+              var f = e.target.files && e.target.files[0];
+              void handleSelectedFile(f);
+              e.target.value = '';
+            };
+
+          var dropZone = document.getElementById('drop-zone');
+          if (dropZone) {
+            dropZone.ondragover = function (e) {
+              e.preventDefault();
+              if (!state.isDragging) {
+                state.isDragging = true;
+                dropZone.classList.add('dragging');
+              }
+            };
+            dropZone.ondragleave = function () {
+              state.isDragging = false;
+              dropZone.classList.remove('dragging');
+            };
+            dropZone.ondrop = function (e) {
+              e.preventDefault();
+              state.isDragging = false;
+              var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+              void handleSelectedFile(f);
+            };
+          }
+
+          document.querySelectorAll('[data-sample]').forEach(function (btn) {
+            btn.onclick = function () {
+              state.fileError = null;
+              state.image = createSampleProblemImage(btn.getAttribute('data-sample'));
+              state.result = null;
+              state.apiError = null;
+              render();
+            };
+          });
+
+          var clearImg = document.getElementById('btn-clear-image');
+          if (clearImg)
+            clearImg.onclick = function () {
+              state.image = null;
+              state.result = null;
+              state.apiError = null;
+              render();
+            };
+
+          document.querySelectorAll('[data-hint]').forEach(function (btn) {
+            btn.onclick = function () {
+              state.difficultyHint = btn.getAttribute('data-hint');
+              render();
+            };
+          });
+
+          var back2 = document.getElementById('btn-back-step2');
+          if (back2)
+            back2.onclick = function () {
+              state.step = 2;
+              render();
+            };
+
+          var analyzeBtn = document.getElementById('btn-analyze');
+          if (analyzeBtn)
+            analyzeBtn.onclick = function () {
+              if (!state.selectedSubject || !state.selectedCohort || !state.image) return;
+              void runPrediction(
+                state.selectedSubject,
+                state.selectedCohort,
+                state.image,
+                state.difficultyHint
+              );
+            };
+
+          // Step 4
+          var retryBtn = document.getElementById('btn-retry');
+          if (retryBtn)
+            retryBtn.onclick = function () {
+              if (!state.selectedSubject || !state.selectedCohort || !state.image) return;
+              void runPrediction(
+                state.selectedSubject,
+                state.selectedCohort,
+                state.image,
+                state.difficultyHint
+              );
+            };
+
+          var reupBtn = document.getElementById('btn-reupload');
+          if (reupBtn)
+            reupBtn.onclick = function () {
+              clearRevealTimers();
+              phonkAudio.stopAnalyzingLoop();
+              state.step = 3;
+              render();
+            };
+
+          var reupThumb = document.getElementById('btn-reupload-thumb');
+          if (reupThumb)
+            reupThumb.onclick = function () {
+              clearRevealTimers();
+              phonkAudio.stopAnalyzingLoop();
+              state.step = 3;
+              render();
+            };
+
+          var resetAllBtn = document.getElementById('btn-reset-all');
+          if (resetAllBtn) resetAllBtn.onclick = resetAll;
+
+          var replayBtn = document.getElementById('btn-replay');
+          if (replayBtn)
+            replayBtn.onclick = async function () {
+              if (state.soundEnabled) {
+                await phonkAudio.unlockAndResume('연출 다시 보기 버튼');
+              }
+              if (state.result) startRevealSequence(state.result);
+            };
+
+          var soundStageBtn = document.getElementById('btn-sound-stage');
+          if (soundStageBtn)
+            soundStageBtn.onclick = function () {
+              void handleToggleSound();
+            };
+
+          document.querySelectorAll('[data-switch-cohort]').forEach(function (btn) {
+            btn.onclick = function () {
+              var nextCohort = btn.getAttribute('data-switch-cohort');
+              if (!nextCohort || nextCohort === state.selectedCohort) return;
+              state.selectedCohort = nextCohort;
+              void runPrediction(
+                state.selectedSubject,
+                nextCohort,
+                state.image,
+                state.difficultyHint
+              );
+            };
+          });
+        }
+
+        render();
+      })();
+    </script>
+  
+
+</body><whale-quicksearch translate="no"></whale-quicksearch></html>
